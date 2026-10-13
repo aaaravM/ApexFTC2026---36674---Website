@@ -1,0 +1,475 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   CAD sheet — the "drafting" sub-theme (global CSS, dwg- prefix: the project CSS rule treats every .css file as global, so CSS modules are not used) (DESIGN_SPEC §5 CAD, ERRATA #1).
+   The page body is a drawing sheet in BOTH site themes: paper, ink, pencil, grid.
+
+   CSS custom properties resolve where they are DECLARED, so overriding only --bg/--text here would
+   leave every derived and shadcn/registry token (--background, --border, --ring, --lede…) at the
+   site-theme value inherited from <html>. So the whole token + alias block is re-declared on this
+   scope, and library components (direction-aware-tabs, halo-segmented…) render in paper colours.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.dwg-paper {
+  /* raw tokens — paper #EFEDE6, ink #141413, pencil #55534C, grid #D3D0C6 */
+  --bg: #efede6;
+  --surface-1: #f5f3ed;
+  --surface-2: #e5e2d8;
+  --surface-logo: #242424;
+  --hairline: #c3bfb3;
+  --border-ui: #6e6b63; /* 4.5:1 on paper */
+  --text: #141413; /* 15.7:1 */
+  --muted: #55534c; /* 6.6:1 */
+  --wing: #7f7f7f;
+  --pollen: #f7e326; /* highlighter FILLS only, always with ink text */
+  --pollen-ink: #0e0e0d;
+  --pollen-text: #7a6a00; /* 4.6:1 */
+  --pollen-line: #7a6a00;
+  --pollen-edge: #141413;
+  --data-red: #d21f1f;
+  --data-blue: #0066b3;
+  --focus: #141413;
+
+  /* derived (re-declared so they mix THESE values) */
+  --lede: color-mix(in oklab, var(--muted) 45%, var(--text));
+  --hairline-strong: color-mix(in oklab, var(--hairline) 55%, var(--text));
+
+  /* shadcn alias block */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface-1);
+  --card-foreground: var(--text);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--text);
+  --primary: var(--text);
+  --primary-foreground: var(--bg);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--text);
+  --muted-foreground: var(--muted);
+  --accent: var(--surface-2);
+  --accent-foreground: var(--text);
+  --destructive: var(--data-red);
+  --border: var(--hairline);
+  --input: var(--border-ui);
+  --ring: var(--focus);
+  --chart-1: var(--text);
+  --chart-2: var(--muted);
+  --chart-3: var(--wing);
+  --chart-4: var(--pollen);
+  --chart-5: var(--border-ui);
+
+  color-scheme: light;
+  color: var(--text);
+  background-color: var(--bg);
+}
+
+/* ─── The sheet frame ───────────────────────────────────────────────────────── */
+.dwg-sheet {
+  --inset: 8px; /* paper edge → outer border */
+  --band: 20px; /* zone band between the outer and inner border */
+  --pad: clamp(18px, 3.4vw, 52px); /* inner border → content */
+  --zone-h: 320px;
+  position: relative;
+  isolation: isolate;
+}
+@media (max-width: 639.98px) {
+  .dwg-sheet {
+    --inset: 5px;
+    --band: 14px;
+    --zone-h: 360px;
+  }
+}
+
+.dwg-frame-outer,
+.dwg-frame-inner,
+.dwg-drawing-area {
+  position: absolute;
+  pointer-events: none;
+}
+.dwg-frame-outer {
+  inset: var(--inset);
+}
+.dwg-frame-inner {
+  inset: calc(var(--inset) + var(--band));
+  z-index: 1;
+}
+.dwg-drawing-area {
+  inset: calc(var(--inset) + var(--band));
+  z-index: -1;
+}
+
+.dwg-content {
+  position: relative;
+  padding: calc(var(--inset) + var(--band) + var(--pad));
+}
+
+.dwg-band-h,
+.dwg-band-v {
+  position: absolute;
+  pointer-events: none;
+  font-family: var(--ff-mono), ui-monospace, monospace;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 639.98px) {
+  .dwg-band-h,
+  .dwg-band-v {
+    font-size: 9px;
+  }
+}
+.dwg-band-h {
+  left: calc(var(--inset) + var(--band));
+  right: calc(var(--inset) + var(--band));
+  height: var(--band);
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+.dwg-band-top {
+  top: var(--inset);
+}
+.dwg-band-bottom {
+  bottom: var(--inset);
+}
+.dwg-band-h > span {
+  display: grid;
+  place-items: center;
+}
+.dwg-band-h > span + span {
+  border-left: 1px solid var(--text);
+}
+.dwg-band-v {
+  top: calc(var(--inset) + var(--band));
+  bottom: calc(var(--inset) + var(--band));
+  width: var(--band);
+  overflow: hidden;
+  display: grid;
+  grid-auto-rows: var(--zone-h);
+  align-content: start;
+}
+.dwg-band-left {
+  left: var(--inset);
+}
+.dwg-band-right {
+  right: var(--inset);
+}
+.dwg-band-v > span {
+  display: grid;
+  place-items: center;
+  border-bottom: 1px solid var(--text);
+}
+
+/* Zone numbering follows the breakpoints: 4 zones on phones, 8 on tablets, 12 (= the page grid)
+   on desktop. (Visibility lives here, not in Tailwind: unlayered module CSS would beat `hidden`.) */
+.dwg-zones-8,
+.dwg-zones-12 {
+  display: none;
+}
+@media (min-width: 640px) {
+  .dwg-zones-4 {
+    display: none;
+  }
+  .dwg-zones-8 {
+    display: grid;
+  }
+}
+@media (min-width: 1024px) {
+  .dwg-zones-8 {
+    display: none;
+  }
+  .dwg-zones-12 {
+    display: grid;
+  }
+}
+
+/* The drawing number repeated upside-down in the top-left corner (filing convention). */
+.dwg-dwg-corner {
+  position: absolute;
+  top: calc(var(--inset) + var(--band));
+  left: calc(var(--inset) + var(--band));
+  z-index: 1;
+  padding: 3px 8px 2px;
+  /* drawn on the left/top, which the 180° turn puts on the right/bottom */
+  border-left: 1px solid var(--text);
+  border-top: 1px solid var(--text);
+  font-family: var(--ff-mono), ui-monospace, monospace;
+  font-size: 10px;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  color: var(--text);
+  rotate: 180deg;
+  pointer-events: none;
+}
+@media (max-width: 639.98px) {
+  .dwg-dwg-corner {
+    display: none;
+  }
+}
+
+/* Centring marks: a short heavy stroke at the middle of each edge, through the band. */
+.dwg-centre-mark {
+  position: absolute;
+  background: var(--text);
+  pointer-events: none;
+}
+.dwg-centre-top,
+.dwg-centre-bottom {
+  left: 50%;
+  width: 2px;
+  height: calc(var(--band) + 6px);
+  translate: -50% 0;
+}
+.dwg-centre-top {
+  top: var(--inset);
+}
+.dwg-centre-bottom {
+  bottom: var(--inset);
+}
+.dwg-centre-left,
+.dwg-centre-right {
+  top: 50%;
+  height: 2px;
+  width: calc(var(--band) + 6px);
+  translate: 0 -50%;
+}
+.dwg-centre-left {
+  left: var(--inset);
+}
+.dwg-centre-right {
+  right: var(--inset);
+}
+
+/* ─── Highlighter pen (pollen budget: a few words per screen) ──────────────── */
+.dwg-hl {
+  background-image: linear-gradient(
+    transparent 56%,
+    var(--pollen) 56%,
+    var(--pollen) 94%,
+    transparent 94%
+  );
+  padding-inline: 0.12em;
+  margin-inline: -0.12em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* ─── Slide-rule range input ───────────────────────────────────────────────── */
+/* Native <input type="range"> (keyboard, screen readers, touch) dressed as a ruler with a
+   slide-rule cursor: a paper window with an ink hairline. The ruler ticks sit in a sibling
+   inset by half the thumb width so they line up with the thumb's travel. */
+.dwg-range {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 34px;
+  margin: 0;
+  background: transparent;
+  cursor: ew-resize;
+  touch-action: pan-y;
+  outline-offset: 3px;
+}
+.dwg-range::-webkit-slider-runnable-track {
+  height: 34px;
+  background: transparent;
+  border: 0;
+}
+.dwg-range::-moz-range-track {
+  height: 34px;
+  background: transparent;
+  border: 0;
+}
+.dwg-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  width: 14px;
+  height: 32px;
+  margin-top: 1px;
+  border: 1.5px solid var(--text);
+  border-radius: 2px;
+  background:
+    linear-gradient(var(--text), var(--text)) center / 1.5px 100% no-repeat,
+    color-mix(in oklab, var(--bg) 78%, transparent);
+  transition: background-color var(--dur-micro) var(--ease-out);
+}
+.dwg-range::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 14px;
+  height: 32px;
+  border: 1.5px solid var(--text);
+  border-radius: 2px;
+  background:
+    linear-gradient(var(--text), var(--text)) center / 1.5px 100% no-repeat,
+    color-mix(in oklab, var(--bg) 78%, transparent);
+}
+.dwg-range:active::-webkit-slider-thumb {
+  background-color: var(--pollen);
+}
+.dwg-range:active::-moz-range-thumb {
+  background-color: var(--pollen);
+}
+.dwg-range:focus-visible {
+  outline: 2px solid var(--focus);
+}
+.dwg-ruler-ticks {
+  position: absolute;
+  left: 7px; /* half the thumb */
+  top: 0;
+  width: calc(100% - 14px);
+  height: 34px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* ─── Viewer ───────────────────────────────────────────────────────────────── */
+.dwg-viewport {
+  background-color: var(--bg);
+  /* 3D canvas regions never get a backdrop blur or grain over them */
+}
+.dwg-viewport-canvas canvas {
+  touch-action: pan-y;
+  outline: none;
+}
+.dwg-ann-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 1px 4px 0;
+  background: color-mix(in oklab, var(--bg) 90%, transparent);
+  font-family: var(--ff-mono), ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 15px;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  will-change: transform, opacity;
+  opacity: 0;
+}
+.dwg-ann-label small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.dwg-ann-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.dwg-ann-svg line,
+.dwg-ann-svg path,
+.dwg-ann-svg polyline {
+  vector-effect: non-scaling-stroke;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dwg-ann-fade {
+    transition: opacity var(--dur-small) var(--ease-out);
+  }
+}
+
+/* Paper-coloured knock-out behind text that sits on the grid. */
+.dwg-knock {
+  background-color: var(--bg);
+}
+
+/* The detail drawings' faint construction grid (finer than the sheet grid). */
+.dwg-detail-grid {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--cad-grid) 70%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--cad-grid) 70%, transparent) 1px, transparent 1px);
+  background-size: 12px 12px;
+  background-position: -1px -1px;
+}
+
+/* ─── PlotFrame — borders that draw like a pen plotter ─────────────────────── */
+.dwg-plot {
+  position: absolute;
+  pointer-events: none;
+  color: var(--text);
+}
+.dwg-plot > i {
+  position: absolute;
+  display: block;
+  background: currentColor;
+}
+.dwg-plot > i:nth-child(1) {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--plot-w, 1px);
+  transform-origin: left center;
+}
+.dwg-plot > i:nth-child(2) {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--plot-w, 1px);
+  transform-origin: center top;
+}
+.dwg-plot > i:nth-child(3) {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--plot-w, 1px);
+  transform-origin: right center;
+}
+.dwg-plot > i:nth-child(4) {
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--plot-w, 1px);
+  transform-origin: center bottom;
+}
+.dwg-plot[data-m="armed"] > i:nth-child(odd) {
+  transform: scaleX(0);
+}
+.dwg-plot[data-m="armed"] > i:nth-child(even) {
+  transform: scaleY(0);
+}
+.dwg-plot[data-m="play"] > i:nth-child(odd) {
+  animation: dwg-plot-x var(--plot-side, 0.35s) cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+.dwg-plot[data-m="play"] > i:nth-child(even) {
+  animation: dwg-plot-y var(--plot-side, 0.35s) cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+.dwg-plot[data-m="play"] > i:nth-child(1) {
+  animation-delay: var(--m-delay, 0s);
+}
+.dwg-plot[data-m="play"] > i:nth-child(2) {
+  animation-delay: calc(var(--m-delay, 0s) + var(--plot-side, 0.35s));
+}
+.dwg-plot[data-m="play"] > i:nth-child(3) {
+  animation-delay: calc(var(--m-delay, 0s) + 2 * var(--plot-side, 0.35s));
+}
+.dwg-plot[data-m="play"] > i:nth-child(4) {
+  animation-delay: calc(var(--m-delay, 0s) + 3 * var(--plot-side, 0.35s));
+}
+@keyframes dwg-plot-x {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes dwg-plot-y {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+/* Dimension callouts: extension ticks + arrowheads either side of a drawn LineDraw. */
+.dwg-dim-ext {
+  width: 1px;
+  height: 14px;
+  background: currentColor;
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dwg-plot[data-m] > i {
+    animation: none !important;
+    transform: none !important;
+  }
+}

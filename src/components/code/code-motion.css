@@ -1,0 +1,281 @@
+/* Code page motion helpers (global classes, "code-" prefix). CSS-only so above-the-fold content
+   animates on first paint without waiting for hydration; static under reduced motion. */
+
+.code-rise {
+  animation: code-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) var(--code-delay, 0s) both;
+}
+@keyframes code-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Track of the loop diagram drawing itself once (pathLength="1" on the shape). */
+.code-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+.code-draw[data-armed="true"] {
+  stroke-dashoffset: 1;
+}
+.code-draw[data-armed="false"] {
+  transition: stroke-dashoffset 1.4s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* ── Armed section effects (armed.tsx). States: no data-m = final · "armed" = waiting · "play". ── */
+
+/* code-plot — the solver drawing plots itself. */
+.code-plot[data-m="armed"] figure {
+  opacity: 0;
+}
+.code-plot[data-m="play"] figure {
+  animation: code-fade 0.6s cubic-bezier(0.22, 1, 0.36, 1) var(--code-delay, 0s) both;
+}
+/* The strokes are non-scaling, so dash tricks would mis-measure: sweep a clip across instead —
+   the flight runs muzzle (left) → CELL (right). */
+.code-plot[data-m="armed"] .code-trace {
+  clip-path: inset(-2px 100% -2px -2px);
+}
+.code-plot[data-m="play"] .code-trace {
+  animation: code-trace 1.6s cubic-bezier(0.45, 0, 0.25, 1) calc(var(--code-delay, 0s) + 0.45s) both;
+}
+.code-plot[data-m="armed"] .code-late {
+  opacity: 0;
+}
+.code-plot[data-m="play"] .code-late {
+  animation: code-fade 0.5s ease-out calc(var(--code-delay, 0s) + 1.8s) both;
+}
+@keyframes code-trace {
+  from { clip-path: inset(-2px 100% -2px -2px); }
+  to { clip-path: inset(-2px -2px -2px -2px); }
+}
+@keyframes code-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* code-tilt — panels hinge up from their top edge; then a lamp test runs down the annunciator. */
+.code-tilt {
+  perspective: 1400px;
+}
+/* A tilted panel projects slightly wider than its box: keep that off the page's scroll width. */
+.code-tilt[data-m],
+.code-flap[data-m] {
+  overflow-x: clip;
+}
+.code-tilt > * {
+  transform-origin: 50% 0;
+}
+.code-tilt[data-m="armed"] > * {
+  opacity: 0;
+  transform: rotateX(16deg) translateY(28px);
+}
+.code-tilt[data-m="play"] > * {
+  animation: code-tilt 1s cubic-bezier(0.22, 1, 0.36, 1) calc(var(--code-delay, 0s) + var(--i, 0) * 0.15s) both;
+}
+@keyframes code-tilt {
+  from { opacity: 0; transform: rotateX(16deg) translateY(28px); }
+  60% { opacity: 1; }
+  to { opacity: 1; transform: none; }
+}
+.code-tilt[data-m="play"] .code-lamp {
+  animation: code-lamp 0.42s steps(1, end) calc(var(--code-delay, 0s) + 0.8s + var(--lamp, 0) * 0.11s) backwards;
+}
+@keyframes code-lamp {
+  0% { background-color: var(--pollen-line); }
+}
+
+/* code-swap — sensor rows land; the ⇄ turns; the new sensor slides over from the usual column. */
+.code-swap[data-m="armed"] .code-row {
+  opacity: 0;
+}
+.code-swap[data-m="play"] .code-row {
+  animation: code-fade 0.5s ease-out calc(var(--code-delay, 0s) + var(--i, 0) * 0.16s) both;
+}
+.code-swap-in {
+  display: inline-block;
+}
+.code-swap[data-m="armed"] .code-swap-in {
+  opacity: 0;
+  transform: translateX(-2.75rem);
+}
+.code-swap[data-m="play"] .code-swap-in {
+  animation: code-swap-in 0.9s cubic-bezier(0.65, 0, 0.35, 1) calc(var(--code-delay, 0s) + var(--i, 0) * 0.16s + 0.3s) both;
+}
+@keyframes code-swap-in {
+  from { opacity: 0; transform: translateX(-2.75rem); }
+  to { opacity: 1; transform: none; }
+}
+.code-swap-icon {
+  display: inline-block;
+}
+.code-swap[data-m="play"] .code-swap-icon {
+  animation: code-turn 0.9s cubic-bezier(0.65, 0, 0.35, 1) calc(var(--code-delay, 0s) + var(--i, 0) * 0.16s + 0.3s) both;
+}
+@keyframes code-turn {
+  from { transform: rotate(-180deg); }
+  to { transform: none; }
+}
+.code-swap-bar {
+  transform-origin: 50% 0;
+}
+.code-swap[data-m="armed"] .code-swap-bar {
+  transform: scaleY(0);
+}
+.code-swap[data-m="play"] .code-swap-bar {
+  animation: code-grow-y 0.7s cubic-bezier(0.65, 0, 0.35, 1) calc(var(--code-delay, 0s) + var(--i, 0) * 0.16s + 0.9s) both;
+}
+@keyframes code-grow-y {
+  from { transform: scaleY(0); }
+  to { transform: none; }
+}
+
+/* code-unfold — the tree prints its rows in from the left, then the inspector settles in. The li
+   elements carry the tree component's own motion, so only their children animate here. */
+.code-unfold[data-m="armed"] li > *,
+.code-unfold[data-m="armed"] aside {
+  opacity: 0;
+}
+.code-unfold[data-m="play"] li > * {
+  animation: code-print 0.45s cubic-bezier(0.22, 1, 0.36, 1) calc(var(--code-delay, 0s) + var(--r, 0) * 0.055s) backwards;
+}
+.code-unfold[data-m="play"] aside {
+  animation: code-fade 0.8s ease-out calc(var(--code-delay, 0s) + 0.35s) backwards;
+}
+.code-unfold li:nth-child(2) { --r: 1; }
+.code-unfold li:nth-child(3) { --r: 2; }
+.code-unfold li:nth-child(4) { --r: 3; }
+.code-unfold li:nth-child(5) { --r: 4; }
+.code-unfold li:nth-child(6) { --r: 5; }
+.code-unfold li:nth-child(7) { --r: 6; }
+.code-unfold li:nth-child(8) { --r: 7; }
+.code-unfold li:nth-child(9) { --r: 8; }
+.code-unfold li:nth-child(10) { --r: 9; }
+.code-unfold li:nth-child(n + 11) { --r: 10; }
+@keyframes code-print {
+  from { opacity: 0; transform: translateX(-14px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* code-assemble — tuning matrix: each step's rails extend downward and its dot stamps in.
+   (Tailwind's translate-* utilities use the separate `translate` property, so only scale here.) */
+.code-rail {
+  transform-origin: 50% 0;
+}
+.code-assemble[data-m="armed"] .code-step {
+  opacity: 0;
+}
+.code-assemble[data-m="play"] .code-step {
+  animation: code-fade 0.55s ease-out calc(var(--code-delay, 0s) + var(--i, 0) * 0.2s) both;
+}
+.code-assemble[data-m="armed"] .code-rail {
+  transform: scaleY(0);
+}
+.code-assemble[data-m="play"] .code-rail {
+  animation: code-grow-y 0.32s linear calc(var(--code-delay, 0s) + var(--i, 0) * 0.2s + 0.12s) both;
+}
+.code-assemble[data-m="armed"] .code-dot {
+  opacity: 0;
+}
+.code-assemble[data-m="play"] .code-dot {
+  animation: code-stamp 0.32s cubic-bezier(0.22, 1, 0.36, 1) calc(var(--code-delay, 0s) + var(--i, 0) * 0.2s + 0.1s) both;
+}
+@keyframes code-stamp {
+  from { transform: scale(2.4); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+/* code-notes — each note's rule draws across, then its text settles under it. */
+.code-notes li {
+  position: relative;
+}
+.code-notes li::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px 0;
+  height: 1px;
+  background: var(--color-border-ui, currentColor);
+  transform-origin: 0 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+.code-notes[data-m="play"] li::after {
+  animation: code-rule 0.9s cubic-bezier(0.65, 0, 0.35, 1) calc(var(--code-delay, 0s) + var(--i, 0) * 0.14s) both;
+}
+.code-notes[data-m="armed"] li > * {
+  opacity: 0;
+}
+.code-notes[data-m="play"] li > * {
+  animation: code-fade 0.7s ease-out calc(var(--code-delay, 0s) + var(--i, 0) * 0.14s + 0.35s) both;
+}
+@keyframes code-rule {
+  0% { transform: scaleX(0); opacity: 1; }
+  70% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+
+/* code-flap — spec rows flip down from their top edge, one after another, like a departure board. */
+.code-flap dl {
+  perspective: 900px;
+}
+.code-flap dl > div {
+  transform-origin: 50% 0;
+}
+.code-flap[data-m="armed"] dl > div {
+  opacity: 0;
+  transform: rotateX(-88deg);
+}
+.code-flap[data-m="play"] dl > div {
+  animation: code-flap 0.6s cubic-bezier(0.3, 0, 0.2, 1) calc(var(--code-delay, 0s) + var(--f, 0) * 0.09s) both;
+}
+.code-flap dl > div:nth-child(2) { --f: 1; }
+.code-flap dl > div:nth-child(3) { --f: 2; }
+.code-flap dl > div:nth-child(4) { --f: 3; }
+.code-flap dl > div:nth-child(5) { --f: 4; }
+.code-flap dl > div:nth-child(6) { --f: 5; }
+.code-flap dl > div:nth-child(7) { --f: 6; }
+.code-flap dl > div:nth-child(n + 8) { --f: 7; }
+@keyframes code-flap {
+  from { opacity: 0; transform: rotateX(-88deg); }
+  40% { opacity: 1; }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .code-plot[data-m] figure,
+  .code-plot[data-m] .code-trace,
+  .code-plot[data-m] .code-late,
+  .code-tilt[data-m] > *,
+  .code-tilt[data-m] .code-lamp,
+  .code-swap[data-m] .code-row,
+  .code-swap[data-m] .code-swap-in,
+  .code-swap[data-m] .code-swap-icon,
+  .code-swap[data-m] .code-swap-bar,
+  .code-unfold[data-m] li > *,
+  .code-unfold[data-m] aside,
+  .code-assemble[data-m] .code-step,
+  .code-assemble[data-m] .code-rail,
+  .code-assemble[data-m] .code-dot,
+  .code-notes[data-m] li > *,
+  .code-flap[data-m] dl > div {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    clip-path: none !important;
+  }
+  .code-notes li::after {
+    display: none;
+  }
+  .code-rise {
+    animation: none !important;
+  }
+  .code-draw {
+    stroke-dashoffset: 0 !important;
+    transition: none !important;
+  }
+}

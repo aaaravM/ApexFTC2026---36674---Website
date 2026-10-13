@@ -1,0 +1,733 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   APEX ROBOTICS — "Engraved Instrument" design system (DESIGN_SPEC v1)
+   Tokens · type roles · motion · grain · view transitions.
+   Dark is the default theme (<html class="dark">); light is a full alternative.
+   Yellow on light: fills only (bg-pollen + text-pollen-ink + border-pollen-edge); lines, dots
+   and small indicators use pollen-line (ochre on light); yellow-family text uses pollen-text.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "dither-plugin";
+@import "lenis/dist/lenis.css";
+
+@custom-variant dark (&:is(.dark *));
+/* `light:` variant for the rare light-only tweak (e.g. swapping an official logo file). */
+@custom-variant light (&:is(.light *));
+
+/* ─── 1. Design tokens ─────────────────────────────────────────────────────── */
+/* Light values live on :root, dark values on .dark (the default class on <html>).
+   NOTE on --muted: in THIS system `--muted` is the secondary TEXT colour (spec §1).
+   shadcn's "muted surface" is mapped to --surface-2 in @theme below, so `bg-muted`
+   is still a subtle surface and `text-muted-foreground` is muted text.
+   Never write `text-muted` (that is the surface colour). */
+:root {
+  --bg: #f4f4f1;
+  --surface-1: #ffffff;
+  --surface-2: #ecece8;
+  --surface-logo: #242424;
+  --hairline: #d6d6d0;
+  --border-ui: #7f7f7a;
+  --text: #111110;
+  --muted: #5c5c57;
+  --wing: #7f7f7f;
+  --pollen: #f7e326;
+  --pollen-ink: #0e0e0d;
+  --pollen-text: #7a6a00;
+  /* pollen used as a LINE / dot / small indicator (ochre on light, where yellow lines vanish) */
+  --pollen-line: #7a6a00;
+  /* outline around a pollen FILL (spec: on light, fills always get a 1px ink edge) */
+  --pollen-edge: #0e0e0d;
+  --data-red: #d21f1f;
+  --data-blue: #0066b3;
+  --focus: #111110;
+
+  /* derived */
+  --lede: color-mix(in oklab, var(--muted) 45%, var(--text));
+  --hairline-strong: color-mix(in oklab, var(--hairline) 70%, var(--text));
+  --grain-opacity: 0.05;
+  --header-bg: color-mix(in oklab, var(--bg) 85%, transparent);
+
+  /* CAD "drafting" sub-theme — the same in both site themes */
+  --cad-paper: #efede6;
+  --cad-ink: #141413;
+  --cad-pencil: #55534c;
+  --cad-grid: #d3d0c6;
+
+  /* layout */
+  --header-h: 56px;
+  --page-margin: clamp(16px, 4vw, 56px);
+  --gutter: clamp(16px, 2vw, 28px);
+  --section-pad: clamp(88px, 12vw, 168px);
+  --content-max: 1440px;
+
+  /* z-index scale (spec §1) */
+  --z-canvas: 0;
+  --z-content: 10;
+  --z-sticky: 30;
+  --z-header: 50;
+  --z-grain: 55;
+  --z-overlay: 60;
+  --z-palette: 70;
+  --z-toast: 80;
+
+  /* motion (spec §2) — durations; easings are Tailwind theme vars (ease-out/in/in-out) */
+  --dur-micro: 120ms;
+  --dur-small: 220ms;
+  --dur-medium: 420ms;
+  --dur-large: 900ms;
+
+  /* shadcn token mapping (so library components inherit the system) */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface-1);
+  --card-foreground: var(--text);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--text);
+  --primary: var(--text);
+  --primary-foreground: var(--bg);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--text);
+  --muted-foreground: var(--muted);
+  --accent: var(--surface-2);
+  --accent-foreground: var(--text);
+  --destructive: var(--data-red);
+  --border: var(--hairline);
+  --input: var(--border-ui);
+  --ring: var(--focus);
+  --chart-1: var(--text);
+  --chart-2: var(--muted);
+  --chart-3: var(--wing);
+  --chart-4: var(--pollen);
+  --chart-5: var(--border-ui);
+  --radius: 0.125rem;
+  --sidebar: var(--surface-1);
+  --sidebar-foreground: var(--text);
+  --sidebar-primary: var(--text);
+  --sidebar-primary-foreground: var(--bg);
+  --sidebar-accent: var(--surface-2);
+  --sidebar-accent-foreground: var(--text);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--focus);
+}
+
+.dark {
+  --bg: #0e0e0d;
+  --surface-1: #171716;
+  --surface-2: #1f1f1d;
+  --surface-logo: #242424;
+  --hairline: #2b2b29;
+  --border-ui: #6b6b66;
+  --text: #ecece7;
+  --muted: #9c9c96;
+  --wing: #7f7f7f;
+  --pollen: #f7e326;
+  --pollen-ink: #0e0e0d;
+  --pollen-text: #f7e326;
+  --pollen-line: #f7e326;
+  --pollen-edge: #f7e326;
+  --data-red: #ff5a4e;
+  --data-blue: #4c8dff;
+  --focus: #f7e326;
+  --grain-opacity: 0.04;
+}
+
+/* ─── 2. Tailwind theme mapping ────────────────────────────────────────────── */
+@theme inline {
+  /* fonts — next/font defines --ff-* on <html> (src/app/fonts.ts) */
+  --font-display: var(--ff-display), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--ff-text), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--ff-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-heading: var(--ff-display), ui-sans-serif, system-ui, sans-serif;
+
+  /* system colours → utilities: bg-bg, bg-surface-1, border-hairline, text-fg, text-fg-muted … */
+  --color-bg: var(--bg);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-logo: var(--surface-logo);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-border-ui: var(--border-ui);
+  --color-fg: var(--text);
+  --color-fg-muted: var(--muted);
+  --color-lede: var(--lede);
+  --color-wing: var(--wing);
+  --color-pollen: var(--pollen);
+  --color-pollen-ink: var(--pollen-ink);
+  --color-pollen-text: var(--pollen-text);
+  --color-pollen-line: var(--pollen-line);
+  --color-pollen-edge: var(--pollen-edge);
+  --color-data-red: var(--data-red);
+  --color-data-blue: var(--data-blue);
+  --color-focus: var(--focus);
+  --color-cad-paper: var(--cad-paper);
+  --color-cad-ink: var(--cad-ink);
+  --color-cad-pencil: var(--cad-pencil);
+  --color-cad-grid: var(--cad-grid);
+
+  /* shadcn semantic colours */
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-card: var(--surface-1);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--surface-2);
+  --color-popover-foreground: var(--text);
+  --color-primary: var(--text);
+  --color-primary-foreground: var(--bg);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--text);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--surface-2);
+  --color-accent-foreground: var(--text);
+  --color-destructive: var(--data-red);
+  --color-border: var(--hairline);
+  --color-input: var(--border-ui);
+  --color-ring: var(--focus);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* radius: 0 (panels) · 2px (controls) · full (dots). Every rounded-* above sm is clamped to 2px
+     so installed library components can't drift into soft SaaS corners. */
+  --radius-xs: 1px;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+  --radius-2xl: 2px;
+  --radius-3xl: 2px;
+  --radius-4xl: 2px;
+}
+
+@theme {
+  /* spec §2 easings replace Tailwind's defaults: ease-out / ease-in-out / ease-in utilities */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+
+  /* keyframes the installed libraries reference but don't ship */
+  --animate-caret-blink: caret-blink 1.25s ease-out infinite;
+  --animate-marquee: marquee var(--duration, 40s) linear infinite;
+  --animate-marquee-vertical: marquee-vertical var(--duration, 40s) linear infinite;
+  --animate-led-pulse: led-pulse 1.6s var(--ease-in-out) infinite;
+
+  @keyframes caret-blink {
+    0%,
+    70%,
+    100% {
+      opacity: 1;
+    }
+    20%,
+    50% {
+      opacity: 0;
+    }
+  }
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(calc(-100% - var(--gap, 1rem)));
+    }
+  }
+  @keyframes marquee-vertical {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(calc(-100% - var(--gap, 1rem)));
+    }
+  }
+  @keyframes led-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+}
+
+/* ─── 3. Type roles (spec §1 table) — use these instead of ad-hoc sizes ─────── */
+/* Wordmark sizes are MEASURED, not guessed: at wdth 125 "ROBOTICS" is 6.83em and
+   "APEX ROBOTICS" 10.49em wide. type-wordmark is sized for two lines (ROBOTICS fills the column);
+   add `wordmark-one-line` (Wordmark lines="one", or md: with lines="auto") for a single line. */
+@utility type-wordmark {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  font-stretch: 125%;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  font-size: clamp(40px, 13.2vw, 300px);
+  line-height: 0.86;
+}
+@utility wordmark-one-line {
+  font-size: min(8.6vw, 260px);
+}
+@utility type-display {
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-size: clamp(44px, 7.2vw, 112px);
+  line-height: 0.94;
+  text-wrap: balance;
+}
+@utility type-h2 {
+  font-family: var(--font-display);
+  font-stretch: 108%;
+  font-weight: 560;
+  letter-spacing: -0.005em;
+  font-size: clamp(30px, 3.6vw, 52px);
+  line-height: 1;
+  text-wrap: balance;
+}
+@utility type-h3 {
+  font-family: var(--font-sans);
+  font-stretch: 100%;
+  font-weight: 600;
+  font-size: clamp(20px, 1.4vw + 4px, 24px);
+  line-height: 1.2;
+  text-wrap: balance;
+}
+@utility type-lede {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: clamp(18px, 1.5vw, 22px);
+  line-height: 1.45;
+  max-width: 56ch;
+  color: var(--lede);
+  text-wrap: pretty;
+}
+@utility type-body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: clamp(16px, 0.2vw + 15.2px, 17px);
+  line-height: 1.55;
+  max-width: 68ch;
+  text-wrap: pretty;
+}
+@utility type-label {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  font-stretch: 100%;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  line-height: 1.45;
+}
+@utility type-label-lg {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  font-stretch: 100%;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  line-height: 1.45;
+}
+@utility type-data {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  line-height: 1.5;
+}
+@utility type-figure {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 300;
+  letter-spacing: -0.03em;
+  font-size: clamp(40px, 5vw, 72px);
+  line-height: 1;
+}
+@utility type-code {
+  font-family: var(--font-mono);
+  font-stretch: 87.5%;
+  font-size: 13px;
+  line-height: 1.6;
+  font-variant-ligatures: none;
+}
+
+/* ─── 4. Layout helpers ────────────────────────────────────────────────────── */
+/* .page-x       horizontal page margin
+   .container-page  max 1440px content column with page margins
+   .section-y    vertical section padding
+   .grid-12      12-col grid with the system gutter */
+@utility page-x {
+  padding-inline: var(--page-margin);
+}
+@utility container-page {
+  width: 100%;
+  max-width: calc(var(--content-max) + 2 * var(--page-margin));
+  margin-inline: auto;
+  padding-inline: var(--page-margin);
+}
+@utility section-y {
+  padding-block: var(--section-pad);
+}
+@utility grid-12 {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gutter);
+}
+/* Underline that draws left→right on hover/focus (secondary links). */
+@utility link-draw {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 0% 1px;
+  transition: background-size var(--dur-small) var(--ease-out);
+  &:hover,
+  &:focus-visible {
+    background-size: 100% 1px;
+  }
+}
+/* Footer giant wordmark: one line edge to edge at every width (measured: 10.19em at wdth 125,
+   wght 250, +0.02em tracking → 9.6vw fills ~98% of the viewport). */
+.footer-wordmark {
+  font-size: 9.6vw;
+}
+/* Blueprint paper grid (CAD sheet). */
+@utility paper-grid {
+  background-color: var(--cad-paper);
+  background-image:
+    linear-gradient(var(--cad-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--cad-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -1px -1px;
+}
+/* Diagonal hatch (dead zones, PENDING plates, out-of-range bands). */
+@utility hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklab, currentColor 22%, transparent) 0 1px,
+    transparent 1px 7px
+  );
+}
+
+/* ─── 5. Base ──────────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    @apply font-sans;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    scrollbar-color: var(--border-ui) transparent;
+    scrollbar-width: thin;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    overflow-x: clip;
+    min-height: 100svh;
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--pollen);
+    color: var(--pollen-ink);
+  }
+  a {
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1px;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  /* FIRST® marks: real italic (Mona Sans italic, its own non-preloaded instance — ERRATA #6),
+     never synthesized */
+  .mark-first {
+    font-family: var(--ff-text-italic), var(--ff-text), sans-serif;
+    font-style: italic;
+    font-synthesis: none;
+  }
+  sup.mark-reg {
+    font-size: 0.55em;
+    vertical-align: 0.6em;
+    line-height: 0;
+    margin-left: 0.04em;
+    font-style: normal;
+  }
+}
+
+/* ─── 6. Grain overlay (static, fixed, decorative) ─────────────────────────── */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 240px 240px;
+}
+@media print {
+  .grain {
+    display: none;
+  }
+}
+
+/* ─── 6b. Wings mark (src/components/brand/apex-wings.tsx) ─────────────────── */
+/* Pivots from spec §3: left wing root ≈ (388,540), right ≈ (415,540) in the 803×578 viewBox. */
+.apex-wings .wing {
+  transform-box: view-box;
+}
+.apex-wings .wing-l {
+  transform-origin: 388px 540px;
+}
+.apex-wings .wing-r {
+  transform-origin: 415px 540px;
+}
+.apex-wings[data-animate="draw"] .wing-stroke {
+  stroke-width: 0.8px;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation:
+    wings-stroke 700ms var(--ease-in-out) forwards,
+    wings-stroke-out 250ms var(--ease-out) 700ms forwards;
+}
+.apex-wings[data-animate="draw"] .wing-fill {
+  opacity: 0;
+  animation: wings-fill 250ms var(--ease-out) 700ms forwards;
+}
+.apex-wings[data-animate="draw"] .wing-l {
+  animation: wing-flap-l 820ms var(--ease-in-out) 950ms both;
+}
+.apex-wings[data-animate="draw"] .wing-r {
+  animation: wing-flap-r 820ms var(--ease-in-out) 950ms both;
+}
+.apex-wings[data-animate="flap"] .wing-l,
+.group:is(:hover, :focus-visible) .apex-wings[data-animate="flap"] .wing-l {
+  animation: wing-flap-l 820ms var(--ease-in-out) both;
+}
+.apex-wings[data-animate="flap"] .wing-r,
+.group:is(:hover, :focus-visible) .apex-wings[data-animate="flap"] .wing-r {
+  animation: wing-flap-r 820ms var(--ease-in-out) both;
+}
+@keyframes wings-stroke {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes wings-stroke-out {
+  to {
+    stroke-opacity: 0;
+  }
+}
+@keyframes wings-fill {
+  to {
+    opacity: 1;
+  }
+}
+/* A servo-like flap: up 3°, slight overshoot back, settle. */
+@keyframes wing-flap-l {
+  0% {
+    rotate: 0deg;
+  }
+  38% {
+    rotate: 3deg;
+  }
+  72% {
+    rotate: -0.6deg;
+  }
+  100% {
+    rotate: 0deg;
+  }
+}
+@keyframes wing-flap-r {
+  0% {
+    rotate: 0deg;
+  }
+  38% {
+    rotate: -3deg;
+  }
+  72% {
+    rotate: 0.6deg;
+  }
+  100% {
+    rotate: 0deg;
+  }
+}
+/* Already drawn this session, or reduced motion: show the finished mark, no animation. */
+html[data-wings="drawn"] .apex-wings[data-animate="draw"] .wing-strokes {
+  display: none;
+}
+html[data-wings="drawn"] .apex-wings[data-animate="draw"] .wing-fill,
+html[data-wings="drawn"] .apex-wings[data-animate="draw"] .wing {
+  animation: none;
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .apex-wings .wing-strokes {
+    display: none;
+  }
+  .apex-wings .wing,
+  .apex-wings .wing-fill {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
+
+/* Watermelon cursor reticle zone (components/ui/cursor.tsx): hide the native pointer. */
+.cursor-none-scope,
+.cursor-none-scope * {
+  cursor: none !important;
+}
+
+/* (6c. ArcMotif styles live next to the component: src/components/site/arc-motif.css) */
+
+/* ─── 7. Page transitions (React <ViewTransition> + <Link transitionTypes>) ──── */
+/* Recipe (spec §2): old content fades 150ms + 24px slide; new content 250ms after 100ms. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-old(.nav-forward) {
+  --vt-offset: -24px;
+  animation:
+    150ms var(--ease-in) both vt-fade reverse,
+    150ms var(--ease-in) both vt-slide reverse;
+}
+::view-transition-new(.nav-forward) {
+  --vt-offset: 24px;
+  animation:
+    250ms var(--ease-out) 100ms both vt-fade,
+    350ms var(--ease-out) 100ms both vt-slide;
+}
+::view-transition-old(.nav-back) {
+  --vt-offset: 24px;
+  animation:
+    150ms var(--ease-in) both vt-fade reverse,
+    150ms var(--ease-in) both vt-slide reverse;
+}
+::view-transition-new(.nav-back) {
+  --vt-offset: -24px;
+  animation:
+    250ms var(--ease-out) 100ms both vt-fade,
+    350ms var(--ease-out) 100ms both vt-slide;
+}
+@keyframes vt-fade {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+@keyframes vt-fade-plain {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes vt-slide {
+  from {
+    translate: var(--vt-offset) 0;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+/* Shared-element morph (team card portrait → /team/[slug] hero). */
+::view-transition-group(.morph) {
+  animation-duration: 420ms;
+  animation-timing-function: var(--ease-in-out);
+}
+::view-transition-image-pair(.morph) {
+  animation-name: vt-via-blur;
+}
+@keyframes vt-via-blur {
+  30% {
+    filter: blur(3px);
+  }
+}
+/* The header never slides. */
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(site-header) {
+  display: none;
+}
+::view-transition-new(site-header) {
+  animation: none;
+}
+
+/* Theme switch "plotter sweep" (adapted from Skiper UI skiper26): the new theme is drawn
+   top→bottom like a pen plotter. html.theme-wipe is set only for the duration of the switch. */
+html.theme-wipe [data-vt-anchor] {
+  view-transition-name: none !important;
+}
+html.theme-wipe::view-transition-old(root) {
+  animation: none;
+  z-index: -1;
+}
+html.theme-wipe::view-transition-new(root) {
+  animation: theme-sweep 640ms var(--ease-in-out) both;
+}
+@keyframes theme-sweep {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* ─── 8. Reduced motion ────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+  }
+  ::view-transition-old(*) {
+    animation: 120ms linear both vt-fade-plain reverse !important;
+  }
+  ::view-transition-new(*) {
+    animation: 150ms linear both vt-fade-plain !important;
+  }
+  ::view-transition-old(site-header) {
+    display: none;
+  }
+  ::view-transition-new(site-header) {
+    animation: none !important;
+  }
+  .animate-marquee,
+  .animate-marquee-vertical {
+    animation-play-state: paused !important;
+  }
+  .animate-caret-blink,
+  .animate-led-pulse {
+    animation: none !important;
+  }
+}

@@ -1,0 +1,307 @@
+/* /robot — page-scoped styles (rp- prefix; every .css file is global under Turbopack/Tailwind).
+   Monochrome, mechanical, reduced-motion safe. */
+
+/* Scroll cue in the hero: a short ink segment runs down a hairline track, like a plotter pen. */
+.rp-cue {
+  position: relative;
+  display: block;
+  width: 1px;
+  height: 36px;
+  overflow: clip;
+  background: var(--hairline);
+}
+.rp-cue::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 14px;
+  background: var(--text);
+  animation: rp-cue 2.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes rp-cue {
+  0% {
+    transform: translateY(-14px);
+  }
+  70%,
+  100% {
+    transform: translateY(36px);
+  }
+}
+
+/* Photo frames: registration ticks on the corners of the empty contact sheet. */
+.rp-ticks {
+  --tick: 10px;
+  background:
+    linear-gradient(var(--border-ui), var(--border-ui)) top left / var(--tick) 1px no-repeat,
+    linear-gradient(var(--border-ui), var(--border-ui)) top left / 1px var(--tick) no-repeat,
+    linear-gradient(var(--border-ui), var(--border-ui)) top right / var(--tick) 1px no-repeat,
+    linear-gradient(var(--border-ui), var(--border-ui)) top right / 1px var(--tick) no-repeat,
+    linear-gradient(var(--border-ui), var(--border-ui)) bottom left / var(--tick) 1px no-repeat,
+    linear-gradient(var(--border-ui), var(--border-ui)) bottom left / 1px var(--tick) no-repeat,
+    linear-gradient(var(--border-ui), var(--border-ui)) bottom right / var(--tick) 1px no-repeat,
+    linear-gradient(var(--border-ui), var(--border-ui)) bottom right / 1px var(--tick) no-repeat;
+}
+
+/* Parallax without hydration risk: CSS scroll-driven animations (the element's own view
+   timeline). Static where unsupported and under reduced motion.
+   .rp-parallax — drifts against the scroll across its whole pass (--rp-par = travel each way)
+   .rp-drift    — first-screen type: only drifts while it leaves the top of the screen */
+@keyframes rp-parallax {
+  from {
+    transform: translateY(var(--rp-par, 3vh));
+  }
+  to {
+    transform: translateY(calc(var(--rp-par, 3vh) * -1));
+  }
+}
+@keyframes rp-drift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(var(--rp-drift, -6vh));
+  }
+}
+@supports (animation-timeline: view()) {
+  .rp-parallax {
+    animation: rp-parallax linear both;
+    animation-timeline: view();
+    animation-range: cover;
+  }
+  .rp-drift {
+    animation: rp-drift linear both;
+    animation-timeline: view();
+    animation-range: exit;
+  }
+}
+
+/* Rise (./rise.tsx) — children rise in sequence; armed/played by the motion kit's useArm.
+   No data-m = final state (server HTML, on-screen-at-load, reduced motion). */
+.rp-rise[data-m="armed"] > * {
+  opacity: 0;
+  transform: translateY(18px);
+}
+.rp-rise[data-m="play"] > * {
+  animation: rp-rise 0.68s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--m-delay, 0s);
+}
+.rp-rise[data-m="play"] > :nth-child(2) {
+  animation-delay: calc(var(--m-delay, 0s) + 60ms);
+}
+.rp-rise[data-m="play"] > :nth-child(3) {
+  animation-delay: calc(var(--m-delay, 0s) + 120ms);
+}
+.rp-rise[data-m="play"] > :nth-child(4) {
+  animation-delay: calc(var(--m-delay, 0s) + 180ms);
+}
+.rp-rise[data-m="play"] > :nth-child(5) {
+  animation-delay: calc(var(--m-delay, 0s) + 240ms);
+}
+.rp-rise[data-m="play"] > :nth-child(n + 6) {
+  animation-delay: calc(var(--m-delay, 0s) + 300ms);
+}
+@keyframes rp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Armed figures (./armed.tsx) ────────────────────────────────────────────────────────────
+   One trigger per figure ([data-rp-group]: no data-m → final, "armed" → waiting, "play"), each
+   child timed with --rp-delay / --rp-dur / --rp-ease (./fx.ts). The static rules below ARE the
+   final state (server HTML, reduced motion, settled); the armed/play states only exist when the
+   viewer has no reduced-motion preference. Keyframes give only `from`, so every animation ends
+   on the element's real final value. */
+.rp-fx-from {
+  transform: var(--rp-to, none);
+}
+/* SVG parts transform around the drawing's own origin (0,0) — the tracking point, the turret
+   axis, the camera — not their bounding boxes */
+.rp-svg {
+  transform-box: view-box;
+  transform-origin: 0 0;
+}
+/* the HOPPER scan line only exists while it plays */
+.rp-scan-head {
+  opacity: 0;
+}
+/* spec rows draw their own top rule (so it can print across) */
+.rp-spec > div {
+  position: relative;
+}
+.rp-spec > div + div::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  background: var(--hairline);
+  transform-origin: left center;
+}
+
+@keyframes rp-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes rp-dim-in {
+  from {
+    opacity: 0.35;
+  }
+}
+@keyframes rp-from {
+  from {
+    transform: var(--rp-from, none);
+  }
+}
+@keyframes rp-clip-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+@keyframes rp-dash-in {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+@keyframes rp-led-on {
+  from {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 1px var(--border-ui);
+  }
+}
+@keyframes rp-ticks-in {
+  from {
+    background-size: 0 1px, 1px 0, 0 1px, 1px 0, 0 1px, 1px 0, 0 1px, 1px 0;
+  }
+}
+/* a 1px line travelling 0 → 360° across the scale (left, not a translated full-width track,
+   so it never reaches past the scale's right edge) */
+@keyframes rp-scan {
+  from {
+    left: 0;
+    opacity: 1;
+  }
+  97% {
+    opacity: 1;
+  }
+  to {
+    left: calc(100% - 1px);
+    opacity: 0;
+  }
+}
+@keyframes rp-rule-in {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes rp-value-in {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-rp-group][data-m="armed"] .rp-fx-fade {
+    opacity: 0;
+  }
+  [data-rp-group][data-m="armed"] .rp-fx-dim {
+    opacity: 0.35;
+  }
+  [data-rp-group][data-m="armed"] .rp-fx-from {
+    transform: var(--rp-from, none);
+  }
+  [data-rp-group][data-m="armed"] .rp-fx-clip {
+    clip-path: inset(0 100% 0 0);
+  }
+  [data-rp-group][data-m="armed"] .rp-fx-dash {
+    stroke-dashoffset: 1;
+  }
+  [data-rp-group][data-m="armed"] .rp-fx-led {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 1px var(--border-ui);
+  }
+  [data-rp-group][data-m="armed"] .rp-fx-ticks {
+    background-size: 0 1px, 1px 0, 0 1px, 1px 0, 0 1px, 1px 0, 0 1px, 1px 0;
+  }
+
+  [data-rp-group][data-m="play"] :is(.rp-fx-fade, .rp-fx-dim, .rp-fx-from, .rp-fx-clip, .rp-fx-dash, .rp-fx-led, .rp-fx-ticks, .rp-scan-head) {
+    animation-duration: var(--rp-dur, 0.6s);
+    animation-delay: var(--rp-delay, 0s);
+    animation-timing-function: var(--rp-ease, cubic-bezier(0.22, 1, 0.36, 1));
+    animation-fill-mode: both;
+  }
+  [data-rp-group][data-m="play"] .rp-fx-fade {
+    animation-name: rp-fade-in;
+  }
+  [data-rp-group][data-m="play"] .rp-fx-dim {
+    animation-name: rp-dim-in;
+  }
+  [data-rp-group][data-m="play"] .rp-fx-from {
+    animation-name: rp-from;
+  }
+  /* stepped effects use jump-START: Chrome can end an animation at progress 0.9999999… (float
+     error in delay + duration), which steps(…, end) floors one step short — a "snap on" label
+     stayed invisible. jump-start rounds up; the before phase still holds the first keyframe. */
+  [data-rp-group][data-m="play"] .rp-fx-clip {
+    animation-name: rp-clip-in;
+    animation-timing-function: steps(var(--rp-steps, 8), jump-start);
+  }
+  [data-rp-group][data-m="play"] .rp-fx-dash {
+    animation-name: rp-dash-in;
+  }
+  [data-rp-group][data-m="play"] .rp-fx-led {
+    animation-name: rp-led-on;
+  }
+  [data-rp-group][data-m="play"] .rp-fx-ticks {
+    animation-name: rp-ticks-in;
+    animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  [data-rp-group][data-m="play"] .rp-scan-head {
+    animation-name: rp-scan;
+    animation-timing-function: linear;
+    animation-fill-mode: backwards; /* afterwards: back to the hidden base state */
+  }
+
+  /* spec rows print: rule draws → label appears → value slides in from the right */
+  .rp-spec[data-m="armed"] > div::before {
+    transform: scaleX(0);
+  }
+  .rp-spec[data-m="armed"] > div > * {
+    opacity: 0;
+  }
+  .rp-spec[data-m="play"] > div::before {
+    animation: rp-rule-in 0.8s cubic-bezier(0.65, 0, 0.35, 1) calc(var(--i, 0) * 70ms) both;
+  }
+  .rp-spec[data-m="play"] > div > dt {
+    animation: rp-fade-in 0.45s ease-out calc(var(--i, 0) * 70ms + 120ms) both;
+  }
+  .rp-spec[data-m="play"] > div > dd {
+    animation: rp-value-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) calc(var(--i, 0) * 70ms + 200ms) both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rp-cue::after {
+    animation: none;
+    transform: translateY(11px);
+  }
+  .rp-rise[data-m] > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .rp-parallax,
+  .rp-drift {
+    animation: none !important;
+    transform: none !important;
+  }
+}

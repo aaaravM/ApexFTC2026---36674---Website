@@ -1,0 +1,454 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   TEAM page styles — /team and /team/[slug] (src/components/team/*).
+   Global classes (Turbopack treats every .css file as global), all prefixed `team-`.
+   Every effect renders its FINAL state without JavaScript and is off under reduced motion.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* ── 1. Roster card: one line colour drives the outline AND the index notch, so the cut-out
+   corner steps with the frame. Pollen only on the active card (spec: yellow budget). ────── */
+.team-card {
+  --card-line: var(--hairline);
+}
+.team-card:hover,
+.team-card:has(:focus-visible) {
+  --card-line: var(--pollen-line);
+}
+
+/* Plate cards (no photo yet): the wings give a short flap when the card is hovered/focused.
+   Own keyframe names so the animation restarts on every hover. */
+@media (prefers-reduced-motion: no-preference) {
+  .team-card:is(:hover, :focus-within) .team-plate .wing-l {
+    animation: team-flap-l 820ms var(--ease-in-out) both;
+  }
+  .team-card:is(:hover, :focus-within) .team-plate .wing-r {
+    animation: team-flap-r 820ms var(--ease-in-out) both;
+  }
+}
+@keyframes team-flap-l {
+  0% {
+    rotate: 0deg;
+  }
+  38% {
+    rotate: 4deg;
+  }
+  72% {
+    rotate: -0.8deg;
+  }
+  100% {
+    rotate: 0deg;
+  }
+}
+@keyframes team-flap-r {
+  0% {
+    rotate: 0deg;
+  }
+  38% {
+    rotate: -4deg;
+  }
+  72% {
+    rotate: 0.8deg;
+  }
+  100% {
+    rotate: 0deg;
+  }
+}
+
+/* ── 2. Develop reveal (member page): the clean engraved print develops top → bottom over the
+   1-bit dither, with a 1px "print head" riding the front. --team-dev = developed fraction
+   (114% = fully developed, including the 14% soft edge). Default = developed. ─────────────── */
+@property --team-dev {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 114%;
+}
+.team-develop-mask {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(var(--team-dev) - 14%), transparent var(--team-dev));
+  mask-image: linear-gradient(to bottom, #000 calc(var(--team-dev) - 14%), transparent var(--team-dev));
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+.team-scan {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(var(--team-dev) - 7%);
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .team-develop {
+    animation: team-develop 1500ms var(--ease-in-out) 380ms both;
+  }
+  .team-develop .team-scan {
+    animation: team-scan 1500ms linear 380ms both;
+  }
+}
+@keyframes team-develop {
+  from {
+    --team-dev: 0%;
+  }
+  to {
+    --team-dev: 114%;
+  }
+}
+@keyframes team-scan {
+  0% {
+    opacity: 0;
+  }
+  6% {
+    opacity: 1;
+  }
+  86% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* Tint the 1-bit dither into the site's print duotone (#0E0E0D → #ECECE7) instead of pure
+   black/white: two sibling layers above the dither, below the developed print. */
+.team-dither-tint,
+.team-dither-lift {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.team-dither-tint {
+  background: #ecece7;
+  mix-blend-mode: multiply;
+}
+.team-dither-lift {
+  background: #0e0e0d;
+  mix-blend-mode: screen;
+}
+
+/* Member page without a photo: the wings draw themselves where the photo will go — on every
+   visit (the header's once-per-session flag doesn't apply here). */
+@media (prefers-reduced-motion: no-preference) {
+  html .team-plate-draw.team-plate-draw .apex-wings[data-animate="draw"] .wing-strokes {
+    display: inline;
+  }
+  html .team-plate-draw.team-plate-draw .apex-wings[data-animate="draw"] .wing-stroke {
+    stroke-width: 0.8px;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation:
+      wings-stroke 1100ms var(--ease-in-out) 320ms forwards,
+      wings-stroke-out 320ms var(--ease-out) 1420ms forwards;
+  }
+  html .team-plate-draw.team-plate-draw .apex-wings[data-animate="draw"] .wing-fill {
+    opacity: 0;
+    animation: wings-fill 420ms var(--ease-out) 1260ms forwards;
+  }
+  html .team-plate-draw.team-plate-draw .apex-wings[data-animate="draw"] .wing-l {
+    animation: wing-flap-l 820ms var(--ease-in-out) 1600ms both;
+  }
+  html .team-plate-draw.team-plate-draw .apex-wings[data-animate="draw"] .wing-r {
+    animation: wing-flap-r 820ms var(--ease-in-out) 1600ms both;
+  }
+}
+
+/* ── 3. Discipline strip (member page): assigned cells fill left → right like a gauge. ──── */
+@media (prefers-reduced-motion: no-preference) {
+  .team-strip-fill {
+    animation: team-fill 560ms var(--ease-out) both;
+    animation-delay: calc(520ms + var(--i, 0) * 70ms);
+  }
+}
+@keyframes team-fill {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* ── 4. Role matrix: the assignment squares plot in row by row when the table scrolls in
+   (data-m is set by the motion kit's useArm: armed → play). ─────────────────────────────── */
+.team-matrix[data-m="armed"] .team-dot {
+  transform: scale(0);
+}
+.team-matrix[data-m="play"] .team-dot {
+  animation: team-dot-in 460ms var(--ease-out) both;
+  animation-delay: calc(160ms + var(--r, 0) * 45ms + var(--c, 0) * 28ms);
+}
+@keyframes team-dot-in {
+  from {
+    transform: scale(0);
+  }
+  60% {
+    transform: scale(1.3);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .team-matrix .team-dot {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+/* ── 5. Header contact sheet (TEAM, desktop): frames expose left → right on first paint. ─── */
+@media (prefers-reduced-motion: no-preference) {
+  .team-sheet-frame {
+    animation: team-expose 640ms var(--ease-out) both;
+    animation-delay: calc(260ms + var(--c, 0) * 45ms + var(--r, 0) * 90ms);
+  }
+}
+@keyframes team-expose {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* A card that was jumped to from the header sheet pings once (pollen ring closing in). */
+[data-team-ping] {
+  animation: team-ping 1300ms var(--ease-out) both;
+}
+@keyframes team-ping {
+  0% {
+    outline: 2px solid var(--pollen-line);
+    outline-offset: 14px;
+  }
+  45% {
+    outline: 2px solid var(--pollen-line);
+    outline-offset: 4px;
+  }
+  100% {
+    outline: 2px solid transparent;
+    outline-offset: 4px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-team-ping] {
+    animation: none;
+    outline: 2px solid var(--pollen-line);
+    outline-offset: 4px;
+  }
+}
+
+/* ── 6. Filter bar on narrow phones: all six tabs fit one row (counts live in the title block
+   and the SHOWING readout). Scoped to the TEAM filter only. ──────────────────────────────── */
+@media (max-width: 479.98px) {
+  .team-filter [role="tab"] {
+    padding-inline: 10px;
+  }
+  .team-filter [role="tab"] > span.tabular-nums {
+    display: none;
+  }
+}
+
+/* ── 7. Rise (./rise.tsx): a list's children rise in one after another (useArm states). ───── */
+.team-rise[data-m="armed"] > * {
+  opacity: 0;
+  transform: translateY(14px);
+}
+.team-rise[data-m="play"] > * {
+  animation: team-rise 720ms var(--ease-out) both;
+  animation-delay: calc(var(--rise-delay, 0s) + min(var(--i, 0), 8) * 60ms);
+}
+@keyframes team-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .team-rise > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* ── 8. Roster card: the stretched name link sits above the footer, so the footer's RollText
+   ("Read bio") rolls on card hover / keyboard focus instead of on its own link. ─────────── */
+@media (prefers-reduced-motion: no-preference) {
+  .team-card:is(:hover, :has(:focus-visible)) .m-roll > span {
+    transform: translateY(-100%);
+  }
+}
+
+/* ── 9. Signature: cards TILT IN row by row while their prints DEVELOP (./develop.tsx).
+   useArm states on .team-arrive: no data-m = final (server, on-screen-at-load, reduced motion,
+   settled) · armed = waiting · play = arriving. --arrive-delay staggers a row left → right. ──── */
+.team-grain,
+.team-dither {
+  display: none;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.team-grain {
+  /* 1-bit film speckle: thresholded fractal noise in the print's paper tone */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.925 0 0 0 0 0.925 0 0 0 0 0.906 7 0 0 0 -3.7'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+.team-arrive[data-m] .team-grain,
+.team-arrive[data-m] .team-dither {
+  display: block;
+}
+.team-arrive {
+  height: 100%;
+  transform-origin: 50% 100%;
+}
+.team-arrive[data-m="armed"] {
+  opacity: 0;
+}
+.team-arrive--tilt[data-m="armed"] {
+  transform: perspective(1100px) rotateX(11deg) translateY(36px);
+}
+.team-arrive[data-m="play"] {
+  animation: team-arrive-fade 520ms var(--ease-out) var(--arrive-delay, 0s) both;
+}
+.team-arrive--tilt[data-m="play"] {
+  animation: team-tilt-in 1050ms cubic-bezier(0.22, 1, 0.36, 1) var(--arrive-delay, 0s) both;
+}
+@keyframes team-arrive-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes team-tilt-in {
+  from {
+    opacity: 0;
+    transform: perspective(1100px) rotateX(11deg) translateY(36px);
+  }
+  40% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: perspective(1100px) rotateX(0deg) translateY(0);
+  }
+}
+/* the print: over-exposed and soft → the finished engraved duotone */
+.team-arrive[data-m="armed"] :is(.team-print, .team-plate) {
+  filter: brightness(1.9) contrast(0.45) blur(2px);
+}
+.team-arrive[data-m="play"] :is(.team-print, .team-plate) {
+  animation: team-print-dev 1500ms cubic-bezier(0.65, 0, 0.35, 1) calc(var(--arrive-delay, 0s) + 180ms) both;
+}
+@keyframes team-print-dev {
+  from {
+    filter: brightness(1.9) contrast(0.45) blur(2px);
+  }
+  55% {
+    filter: brightness(1.2) contrast(0.85) blur(0.4px);
+  }
+  to {
+    filter: brightness(1) contrast(1) blur(0);
+  }
+}
+/* the 1-bit dither and the grain dissolve in hard steps (a print coming up in the tray) */
+.team-arrive[data-m="play"] .team-dither {
+  animation: team-dissolve 1300ms steps(6, end) calc(var(--arrive-delay, 0s) + 260ms) both;
+}
+.team-arrive[data-m="play"] .team-grain {
+  animation:
+    team-dissolve 1450ms steps(7, end) calc(var(--arrive-delay, 0s) + 160ms) both,
+    team-grain-jitter 290ms steps(1, end) calc(var(--arrive-delay, 0s) + 160ms) 5;
+}
+@keyframes team-dissolve {
+  from {
+    opacity: 0.95;
+    visibility: visible;
+  }
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+@keyframes team-grain-jitter {
+  0% {
+    background-position: 0 0;
+  }
+  25% {
+    background-position: -37px 21px;
+  }
+  50% {
+    background-position: 23px -45px;
+  }
+  75% {
+    background-position: -11px -17px;
+  }
+  100% {
+    background-position: 41px 9px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .team-arrive,
+  .team-arrive * {
+    animation: none !important;
+  }
+  .team-arrive {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .team-arrive :is(.team-print, .team-plate) {
+    filter: none !important;
+  }
+  .team-grain,
+  .team-dither {
+    display: none !important;
+  }
+}
+
+/* ── 10. Rise variants. stamp: discipline chips stamp down one by one (scale 1.4 → 1, no
+   overshoot). slide: index rows feed in from the left like paper through a plotter. ─────── */
+.team-rise--stamp.team-rise[data-m="armed"] > * {
+  opacity: 0;
+  transform: scale(1.4);
+}
+.team-rise--stamp.team-rise[data-m="play"] > * {
+  animation: team-stamp 320ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  animation-delay: calc(var(--rise-delay, 0s) + min(var(--i, 0), 8) * 110ms);
+}
+@keyframes team-stamp {
+  from {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+  45% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.team-rise--slide.team-rise[data-m="armed"] > * {
+  opacity: 0;
+  transform: translateX(-32px);
+}
+.team-rise--slide.team-rise[data-m="play"] > * {
+  animation: team-slide 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--rise-delay, 0s) + min(var(--i, 0), 8) * 90ms);
+}
+@keyframes team-slide {
+  from {
+    opacity: 0;
+    transform: translateX(-32px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

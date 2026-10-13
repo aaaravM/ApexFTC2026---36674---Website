@@ -1,0 +1,98 @@
+/* Links page + 404 motion (global classes, lk- prefix; driven by use-reveal.ts).
+   States on the sequence root (.lk-seq): no data-m / "done" = final · "armed" = hidden, waiting ·
+   "play" = children run their entrance, each delayed by its --i (0, 1, 2 …).
+   Everything lives under no-preference, so reduced motion always gets the static, finished page. */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* rows / lines rise in, one after another */
+  .lk-seq[data-m="armed"] .lk-rise {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  .lk-seq[data-m="play"] .lk-rise {
+    animation: lk-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--lk-delay, 0s) + min(var(--i, 0), 8) * 0.07s);
+  }
+
+  /* hairline rules draw left → right with their row */
+  .lk-seq[data-m="armed"] .lk-rule {
+    transform: scaleX(0);
+  }
+  .lk-seq[data-m="play"] .lk-rule {
+    animation: lk-draw 1s cubic-bezier(0.65, 0, 0.35, 1) both;
+    animation-delay: calc(var(--lk-delay, 0s) + min(var(--i, 0), 8) * 0.07s);
+  }
+
+  /* printout lines "print": a clip that opens left → right, in steps like a line printer */
+  .lk-seq[data-m="armed"] .lk-print {
+    clip-path: inset(0 100% 0 0);
+  }
+  .lk-seq[data-m="play"] .lk-print {
+    animation: lk-print 0.42s steps(10, end) both;
+    animation-delay: calc(var(--lk-delay, 0s) + var(--i, 0) * 0.11s);
+  }
+}
+
+.lk-rule {
+  transform-origin: left center;
+}
+
+@keyframes lk-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes lk-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes lk-print {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* Height-agnostic label roll (the kit's RollText is one line tall; link titles can wrap and carry
+   FIRST® / ™ markup). The duplicate sits just below and both roll up on row hover / focus. */
+.lk-roll {
+  position: relative;
+  display: inline-block;
+  overflow: clip;
+  vertical-align: top;
+}
+.lk-roll > span {
+  display: block;
+  transition: transform 0.42s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.lk-roll > span + span {
+  position: absolute;
+  inset: 100% 0 auto 0;
+}
+[data-lk-row]:hover .lk-roll > span,
+[data-lk-row]:has(a:focus-visible) .lk-roll > span {
+  transform: translateY(-100%);
+}
+.lk-roll-late > span {
+  transition-delay: 60ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lk-roll > span {
+    transition: none;
+  }
+  [data-lk-row]:hover .lk-roll > span,
+  [data-lk-row]:has(a:focus-visible) .lk-roll > span {
+    transform: none;
+  }
+}

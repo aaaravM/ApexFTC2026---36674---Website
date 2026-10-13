@@ -1,0 +1,821 @@
+/* ArcMotif — the trajectory plate (./arc-motif.tsx, animated by ./arc-motif-client.tsx).
+   Global classes, ap- prefix (this project's CSS pipeline treats every .css file as global). Inside
+   @layer components, so a consumer's utilities (mt-16, max-w-3xl, …) still win.
+
+   Geometry: the STAGE is the world window at one uniform scale. Its width is
+   min(drawing width, --ap-max-h × W/H) and --ap-s is the resulting pixels-per-inch, measured with
+   container units against the drawing area (container "ap-draw"). --ap-w / --ap-h (world size) and
+   --ap-r (ball radius, in) are set on the figure. Labels and dimension lines are HTML anchored to
+   world points (left/top in %) with PIXEL offsets, so type never scales into lines.
+
+   Layout: narrow (< 600px) — drawing, then the solver's answer 2 × 2, the note and the foot.
+   Medium (600–959) — a larger drawing, the answer in one row of four. Wide (≥ 960) — the drawing
+   column is exactly as wide as the drawing at its full height, and the answer, the note and the foot
+   take the rest of the plate beside it (so the drawing never floats in an empty field). */
+
+@layer components {
+  .ap-plate {
+    --ap-bg: color-mix(in oklab, var(--surface-1) 55%, var(--bg));
+    --ap-line: var(--border-ui);
+    --ap-faint: var(--hairline-strong);
+    --ap-floor: color-mix(in oklab, var(--muted) 75%, transparent);
+    --ap-dot: color-mix(in oklab, var(--muted) 34%, transparent);
+    container: ap-plate / inline-size;
+    position: relative;
+    display: block;
+    margin: 0;
+    border: 1px solid var(--hairline);
+    background: var(--ap-bg);
+    color: var(--muted);
+  }
+
+  /* ── header ─────────────────────────────────────────────────────────────── */
+  .ap-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 40px;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .ap-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.45;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .ap-source {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1.45;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    color: var(--muted);
+  }
+  .ap-source-k {
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ── body: drawing | spec block ────────────────────────────────────────── */
+  .ap-body {
+    /* the drawing's size and margins at this plate width (container queries below): the stage's
+       height cap, and room for the callout above, the range dimension below, the muzzle dimension
+       on the left and the apex dimension on the right */
+    --ap-max-h: 210px;
+    --ap-pt: 52px;
+    --ap-pb: 52px;
+    --ap-pl: 22px;
+    --ap-pr: 22px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ap-draw {
+    container: ap-draw / inline-size;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: clip;
+    padding: var(--ap-pt) var(--ap-pr) var(--ap-pb) var(--ap-pl);
+  }
+  .ap-draw:has(.ap-verdict) {
+    padding-top: 18px;
+  }
+
+  .ap-stage {
+    position: relative;
+    flex: none;
+    margin-inline: auto;
+    width: min(100%, calc(var(--ap-max-h) * var(--ap-w) / var(--ap-h)));
+    aspect-ratio: var(--ap-w) / var(--ap-h);
+    /* px per inch — 100cqw resolves against .ap-draw wherever this is used inside the stage */
+    --ap-s: calc(min(100cqw, var(--ap-max-h) * var(--ap-w) / var(--ap-h)) / var(--ap-w));
+  }
+  .ap-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  /* world geometry (1px non-scaling strokes; no dash patterns on scaled paths) */
+  .ap-grid {
+    stroke: var(--ap-dot);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .ap-hatch {
+    stroke: var(--ap-faint);
+    stroke-width: 1;
+  }
+  .ap-floor {
+    stroke: var(--ap-floor);
+    stroke-width: 1;
+  }
+  .ap-cup {
+    stroke: color-mix(in oklab, var(--text) 72%, transparent);
+    stroke-width: 1;
+    stroke-linejoin: round;
+    transition:
+      stroke 0.6s var(--ease-out),
+      stroke-width 0.6s var(--ease-out);
+  }
+  /* the ball lands: the CELL answers in ink (pollen stays on the ball) */
+  .ap-cup[data-hit] {
+    stroke: var(--text);
+    stroke-width: 1.75;
+    transition-duration: 0.06s;
+  }
+  .ap-arc {
+    stroke: var(--text);
+    stroke-width: 1;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .ap-arc-miss {
+    stroke: var(--muted);
+  }
+  .ap-muzzle {
+    stroke: var(--muted);
+    stroke-width: 1;
+    fill: var(--ap-bg);
+  }
+  .ap-ball {
+    fill: var(--pollen);
+    stroke: var(--pollen-edge);
+    stroke-width: 1;
+  }
+  .ap-ball-red {
+    fill: var(--data-red);
+    stroke: var(--data-red);
+  }
+  .ap-ball-blue {
+    fill: var(--data-blue);
+    stroke: var(--data-blue);
+  }
+
+  /* ── annotation type ───────────────────────────────────────────────────── */
+  .ap-note {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 14px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .ap-key {
+    color: var(--text);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  /* floating labels knock the grid dots out from behind their text */
+  .ap-callout,
+  .ap-cell-label,
+  .ap-dimv .ap-dim-label,
+  .ap-tick-label,
+  .ap-verdict {
+    background: var(--ap-bg);
+  }
+  .ap-pt {
+    position: absolute;
+    width: 0;
+    height: 0;
+  }
+  /* words for plates too narrow for the dimension that would otherwise say them */
+  .ap-narrow {
+    display: inline;
+  }
+  /* a label placed differently on narrow plates exists twice: one for each */
+  .ap-only-narrow {
+    display: none;
+  }
+
+  /* ── time ticks: square to the arc, every 0.1 s; they flash as the ball passes ── */
+  .ap-tick-mark {
+    position: absolute;
+    left: -0.5px;
+    top: -4px;
+    width: 1px;
+    height: 8px;
+    background: var(--muted);
+    rotate: var(--ap-a);
+    transition: background-color 0.45s var(--ease-out);
+  }
+  .ap-tick-label {
+    --ap-off: calc(var(--ap-r) * var(--ap-s) + 5px);
+    position: absolute;
+    left: calc(var(--ap-nx) * var(--ap-off));
+    top: calc(var(--ap-ny) * var(--ap-off));
+    display: none;
+    padding: 0 2px;
+    translate: calc(-50% + 50% * var(--ap-nx)) 0;
+    transition: color 0.45s var(--ease-out);
+  }
+  .ap-tick[data-hit] .ap-tick-mark {
+    background: var(--text);
+    transition-duration: 0.04s;
+  }
+  .ap-tick[data-hit] .ap-tick-label {
+    color: var(--text);
+    transition-duration: 0.04s;
+  }
+
+  /* ── dimension lines ───────────────────────────────────────────────────── */
+  .ap-dim {
+    position: absolute;
+    color: var(--ap-line);
+  }
+  .ap-line,
+  .ap-ext {
+    position: absolute;
+    display: block;
+  }
+  .ap-line {
+    background: currentColor;
+  }
+  .ap-ext {
+    background: var(--ap-faint);
+  }
+  .ap-arrow {
+    position: absolute;
+    display: block;
+    width: 7px;
+    height: 7px;
+  }
+  .ap-dim-label {
+    position: absolute;
+  }
+
+  /* horizontal (range): 26px under the floor; its extension lines start 3px clear of the ground
+     hatch (1.7 in deep) and run 5px past the dimension line */
+  .ap-dimh {
+    top: calc(100% + 26px);
+    height: 0;
+  }
+  .ap-dimh .ap-line {
+    left: 0;
+    right: 0;
+    top: -0.5px;
+    height: 1px;
+    transform-origin: 50% 50%;
+  }
+  .ap-dimh .ap-arrow-l {
+    left: 0;
+    top: -3.5px;
+  }
+  .ap-dimh .ap-arrow-r {
+    right: 0;
+    top: -3.5px;
+    rotate: 180deg;
+  }
+  .ap-dimh .ap-ext {
+    top: calc(-26px + 1.7 * var(--ap-s) + 3px);
+    width: 1px;
+    height: calc(26px - 1.7 * var(--ap-s) - 3px + 5px);
+    transform-origin: 50% 0;
+  }
+  .ap-ext-l {
+    left: -0.5px;
+  }
+  .ap-ext-r {
+    right: -0.5px;
+  }
+  .ap-dimh .ap-dim-label {
+    left: 50%;
+    top: 0;
+    translate: -50% -50%;
+    padding: 0 7px;
+    background: var(--ap-bg);
+    color: var(--text);
+  }
+
+  /* vertical (muzzle height, apex height): from its top point down to the floor */
+  .ap-dimv {
+    width: 0;
+  }
+  .ap-dimv .ap-line {
+    left: -0.5px;
+    width: 1px;
+    top: 0;
+    bottom: 0;
+    transform-origin: 50% 100%;
+  }
+  .ap-dimv .ap-arrow-t {
+    left: -3.5px;
+    top: 0;
+    rotate: 90deg;
+  }
+  .ap-dimv .ap-arrow-b {
+    left: -3.5px;
+    bottom: 0;
+    rotate: -90deg;
+  }
+  .ap-dimv .ap-dim-label {
+    left: 8px;
+    top: 50%;
+    translate: 0 -50%;
+    color: var(--text);
+  }
+  .ap-dimv .ap-ext-top {
+    top: -0.5px;
+    height: 1px;
+  }
+  /* the muzzle's: the dimension line stands 12px left of the circle; the extension line overshoots
+     it by 4px and stops 3px short of the circle */
+  .ap-dim-muzzle .ap-ext-top {
+    left: -4px;
+    width: 13px;
+    transform-origin: 100% 50%;
+  }
+  /* the apex's, under the apex: the line stops short of the marker (a 7px diamond) */
+  .ap-dim-apex:not([data-beside]) .ap-line,
+  .ap-dim-apex:not([data-beside]) .ap-arrow-t {
+    top: 6px;
+  }
+  /* …or beside the CELL, 16px right of its back wall: the extension line starts 3px clear of the
+     wall and overshoots the dimension line by 4px */
+  .ap-dim-apex .ap-ext-top {
+    left: -13px;
+    width: 17px;
+    transform-origin: 0 50%;
+  }
+  .ap-dim-muzzle .ap-dim-label .ap-key {
+    color: var(--muted);
+  }
+  /* a muzzle too small on screen for its label beside the line: left off on narrow plates; set
+     outside, to the left with more padding, on wide ones (container query below) */
+  .ap-dim-muzzle[data-fit-sm="outside"] .ap-dim-label {
+    display: none;
+  }
+
+  /* launch angle: reference line, 24px arc, label */
+  .ap-angle-ref {
+    position: absolute;
+    left: var(--ap-r0);
+    top: -0.5px;
+    width: calc(40px - var(--ap-r0));
+    height: 1px;
+    background: var(--ap-faint);
+    transform-origin: 0 50%;
+  }
+  .ap-angle-arc {
+    position: absolute;
+    left: 0;
+    top: -30px;
+    width: 30px;
+    height: 30px;
+    overflow: visible;
+  }
+  .ap-angle-arc path {
+    fill: none;
+    stroke: var(--ap-line);
+    stroke-width: 1;
+    stroke-dasharray: 1;
+  }
+  /* below the 40° flight line, so the departing ball never passes over it */
+  .ap-angle-label {
+    position: absolute;
+    left: 31px;
+    top: -16px;
+    color: var(--text);
+  }
+
+  /* ── apex marker + callout ─────────────────────────────────────────────── */
+  .ap-mark {
+    position: absolute;
+    left: -3.5px;
+    top: -3.5px;
+    width: 7px;
+    height: 7px;
+    rotate: 45deg;
+    border: 1px solid var(--text);
+    background: var(--ap-bg);
+  }
+  /* finished drawing with the ball resting ON the apex (server, reduced motion): the ball is the mark */
+  [data-ball="apex"] .ap-mark {
+    visibility: hidden;
+  }
+  /* leader → the callout's underline (its "shoulder"), which ends 18px above / beside the point */
+  .ap-leader {
+    position: absolute;
+    display: block;
+  }
+  span.ap-leader {
+    left: -0.5px;
+    bottom: 7px;
+    width: 1px;
+    height: 11px;
+    background: var(--muted);
+    transform-origin: 50% 100%;
+  }
+  svg.ap-leader {
+    bottom: 5px;
+    width: 13px;
+    height: 13px;
+    overflow: visible;
+  }
+  svg.ap-leader path {
+    fill: none;
+    stroke: var(--muted);
+    stroke-width: 1;
+  }
+  [data-align="end"] > svg.ap-leader {
+    right: 5px;
+    transform-origin: 100% 100%;
+  }
+  [data-align="start"] > svg.ap-leader {
+    left: 5px;
+    transform-origin: 0 100%;
+  }
+  .ap-callout {
+    position: absolute;
+    bottom: 18px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid var(--muted);
+  }
+  [data-align="center"] > .ap-callout {
+    left: 0;
+    translate: -50% 0;
+    text-align: center;
+  }
+  [data-align="end"] > .ap-callout {
+    right: 18px;
+    text-align: right;
+  }
+  [data-align="start"] > .ap-callout {
+    left: 18px;
+    text-align: left;
+  }
+
+  /* ── the CELL ──────────────────────────────────────────────────────────── */
+  /* the label sits where arc-motif.tsx found it clear of the arc and the callout (data-pos): under
+     (b) or over (a) the cup, hanging left from its back wall (l) or right from its near wall (r) —
+     the anchor point is that wall's foot or top */
+  .ap-cell-label {
+    position: absolute;
+    padding: 0 3px;
+  }
+  [data-pos="bl"] > .ap-cell-label {
+    top: 6px;
+    right: -3px;
+  }
+  [data-pos="al"] > .ap-cell-label {
+    bottom: 6px;
+    right: -3px;
+  }
+  [data-pos="br"] > .ap-cell-label {
+    top: 6px;
+    left: -3px;
+  }
+  [data-pos="ar"] > .ap-cell-label {
+    bottom: 6px;
+    left: -3px;
+  }
+  /* ✕ at the aim point, in the cup's mouth */
+  .ap-miss::before,
+  .ap-miss::after {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: -0.5px;
+    width: 12px;
+    height: 1px;
+    background: var(--text);
+    rotate: 45deg;
+  }
+  .ap-miss::after {
+    rotate: -45deg;
+  }
+  /* aim point (no CELL drawn): a small crosshair */
+  .ap-aim::before,
+  .ap-aim::after {
+    content: "";
+    position: absolute;
+    background: var(--text);
+  }
+  .ap-aim::before {
+    left: -5px;
+    top: -0.5px;
+    width: 10px;
+    height: 1px;
+  }
+  .ap-aim::after {
+    left: -0.5px;
+    top: -5px;
+    width: 1px;
+    height: 10px;
+  }
+  .ap-aim[data-pos] > .ap-cell-label {
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+  }
+  .ap-aim[data-pos^="b"] > .ap-cell-label {
+    top: 9px;
+  }
+  .ap-aim[data-pos^="a"] > .ap-cell-label {
+    bottom: 9px;
+  }
+  .ap-aim[data-pos$="l"] > .ap-cell-label {
+    right: -8px;
+  }
+  .ap-aim[data-pos$="r"] > .ap-cell-label {
+    left: -8px;
+  }
+  .ap-verdict {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: 52ch;
+    /* room below for a CELL label set above a target near the top of the drawing */
+    margin: 0 0 36px;
+    white-space: normal;
+  }
+
+  /* ── spec block (the solver's answer), note, foot ──────────────────────── */
+  .ap-aside {
+    container: ap-aside / inline-size;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--hairline);
+  }
+  .ap-readout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
+    margin: 0;
+  }
+  /* label on top, value pinned to the bottom: values in a row share a baseline even if a label wraps */
+  .ap-row {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 12px 14px 13px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .ap-row:nth-child(odd) {
+    border-right: 1px solid var(--hairline);
+  }
+  /* a label too long for a narrow cell wraps; the value under it stays on the row's baseline */
+  .ap-row dt {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 14px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .ap-row dd {
+    margin: auto 0 0;
+    padding-top: 6px;
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 300;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .ap-unit {
+    margin-left: 6px;
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .ap-row-note {
+    display: block;
+    margin-top: 4px;
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 14px;
+    letter-spacing: 0.06em;
+    white-space: normal;
+    color: var(--muted);
+  }
+  /* the flight log (wide plates with a spec column): a column per tick, lit as the ball passes it */
+  .ap-log {
+    display: none;
+    padding: 16px 18px 0;
+  }
+  .ap-log-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 14px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .ap-log-head {
+    caption-side: top;
+    padding-bottom: 8px;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .ap-log-table th {
+    padding: 5px 12px 5px 0;
+    font-weight: 400;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .ap-log-unit {
+    color: color-mix(in oklab, var(--muted) 70%, transparent);
+  }
+  .ap-log-table td {
+    padding: 5px 0 5px 8px;
+    text-align: right;
+    transition: color 0.45s var(--ease-out);
+  }
+  .ap-log-table tr + tr > * {
+    border-top: 1px solid var(--hairline);
+  }
+  .ap-log-table td[data-hit] {
+    color: var(--text);
+    transition-duration: 0.04s;
+  }
+  .ap-caption {
+    max-width: 68ch;
+    margin: 0;
+    padding: 14px 14px 0;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--muted);
+    text-wrap: pretty;
+  }
+  .ap-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    margin-top: auto;
+    padding: 14px;
+  }
+  .ap-foot-row {
+    border-top: 1px solid var(--hairline);
+  }
+  .ap-fnote {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 14px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .ap-replay {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--hairline);
+    border-radius: 2px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    transition:
+      color var(--dur-micro) var(--ease-out),
+      border-color var(--dur-micro) var(--ease-out);
+  }
+  .ap-replay:hover {
+    border-color: var(--border-ui);
+    color: var(--text);
+  }
+  .ap-replay svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  /* ── medium plates: larger drawing, tick labels, the answer in one row of four ── */
+  @container ap-plate (min-width: 600px) {
+    .ap-body {
+      --ap-max-h: 260px;
+      --ap-pt: 56px;
+      --ap-pb: 56px;
+      --ap-pl: 52px;
+      --ap-pr: 96px;
+    }
+    .ap-narrow {
+      display: none;
+    }
+    .ap-tick-label {
+      display: block;
+    }
+    .ap-body[data-aside] .ap-readout {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .ap-body[data-aside] .ap-row {
+      border-right: 1px solid var(--hairline);
+    }
+    .ap-body[data-aside] .ap-row:last-child {
+      border-right: 0;
+    }
+    .ap-draw:has(.ap-verdict) {
+      padding-top: 22px;
+    }
+    .ap-draw[data-mo] {
+      padding-left: 70px;
+    }
+    .ap-dim-muzzle[data-fit-sm] .ap-dim-label {
+      display: block;
+    }
+    .ap-dim-muzzle[data-fit="outside"] .ap-dim-label {
+      left: auto;
+      right: 8px;
+    }
+  }
+
+  /* ── wide plates: the drawing column fits the drawing; the answer, note and foot beside it ── */
+  @container ap-plate (min-width: 960px) {
+    .ap-body {
+      --ap-max-h: 320px;
+      --ap-pt: 52px;
+      --ap-pl: 56px;
+    }
+    /* the drawing column: the drawing at full height plus its margins — but never so narrow that the
+       spec column grows past 600px (a short shot's drawing then sits centred in a wider column) */
+    .ap-body[data-aside] {
+      grid-template-columns:
+        minmax(0, max(calc(var(--ap-max-h) * var(--ap-w) / var(--ap-h) + var(--ap-pl) + var(--ap-pr)), calc(100% - 600px)))
+        minmax(300px, 1fr);
+    }
+    .ap-body[data-aside] .ap-aside {
+      border-top: 0;
+      border-left: 1px solid var(--hairline);
+    }
+    .ap-body[data-aside] .ap-readout {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .ap-body[data-aside] .ap-row {
+      padding: 18px 18px 19px;
+      border-right: 0;
+    }
+    .ap-body[data-aside] .ap-row:nth-child(odd) {
+      border-right: 1px solid var(--hairline);
+    }
+    .ap-body[data-aside] .ap-row dd {
+      font-size: 20px;
+    }
+    .ap-body[data-aside] .ap-log {
+      display: block;
+    }
+    .ap-body[data-aside] .ap-caption {
+      padding: 16px 18px 0;
+    }
+    .ap-body[data-aside] .ap-foot {
+      padding: 16px 18px 18px;
+    }
+  }
+  /* a narrow spec column: the foot's two notes on their own lines */
+  @container ap-aside (max-width: 459.98px) {
+    .ap-fnote-a,
+    .ap-fnote-b {
+      display: block;
+    }
+    .ap-fnote-sep {
+      display: none;
+    }
+  }
+
+  /* ── narrow plates: drop the apex-height dimension, shorten labels ─────── */
+  @container ap-plate (max-width: 599.98px) {
+    .ap-dim-apex,
+    .ap-wide,
+    .ap-only-wide {
+      display: none !important;
+    }
+    .ap-only-narrow {
+      display: block;
+    }
+  }
+  @container ap-plate (max-width: 359.98px) {
+    .ap-source-k {
+      display: none;
+    }
+  }
+  @container ap-plate (max-width: 309.98px) {
+    .ap-source {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ap-replay {
+      display: none;
+    }
+  }
+}

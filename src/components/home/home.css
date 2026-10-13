@@ -1,0 +1,710 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   HOME story layout (src/components/home/*). Global classes, `home-` prefix (the project's
+   Turbopack/Tailwind rule makes every .css global, so no CSS modules).
+
+   One DOM, three layouts — chosen by CSS so the first paint is already right:
+     SIDES  motion + landscape (≥600px): robot glides left/right, text takes the other half
+     STACK  motion + portrait / narrow:  robot in the top region, text in the bottom region
+     FLOW   prefers-reduced-motion:      no scrub — the name, then chapters in normal flow with a
+                                         static robot beside (landscape) or above (portrait) them
+   JS (home-story.tsx) mirrors the same media queries for the 3D framing.
+
+   Geometry (motion): the intro is 200svh with a pinned name layer; it overlaps the first chapter
+   by 100svh. Each chapter article = slot + 100svh and its panel pins for exactly one slot; articles
+   overlap by 100svh so the panels stack in place. Story height = 200svh + 6 × slot. The stage
+   (canvas) lives in an absolutely positioned track and sticks for the whole story.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.home-story {
+  --home-slot: 92svh;
+  /* STACK: height of the robot region, header included */
+  --home-region: clamp(260px, 50svh, calc(var(--header-h) + 92vw));
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+}
+
+/* ─── stage (canvas + overlays) ─────────────────────────────────────────────── */
+.home-track {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.home-stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+}
+.home-region-probe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: var(--home-region);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ─── intro: the name, pinned while it collapses into the robot ─────────────── */
+.home-intro {
+  position: relative;
+  z-index: 20;
+  height: 200svh;
+  margin-bottom: -100svh;
+  pointer-events: none;
+}
+.home-intro-pin {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: var(--header-h);
+  text-align: center;
+}
+.home-intro-pin > * {
+  pointer-events: auto;
+}
+/* each letter: outer = scroll collapse target, mask = clip box, rise = first-paint entrance */
+.home-letter {
+  display: inline-block;
+  will-change: transform, opacity, filter;
+  transform-origin: 50% 55%;
+}
+.home-letter-mask {
+  display: inline-block;
+  vertical-align: top;
+  overflow: visible clip;
+  padding-block: 0.16em 0.2em;
+  margin-block: -0.16em -0.2em;
+}
+.home-letter-rise {
+  display: inline-block;
+  animation: home-letter-rise 1.05s var(--ease-out) both;
+  animation-delay: calc(0.1s + var(--i, 0) * 0.042s);
+}
+@keyframes home-letter-rise {
+  from {
+    transform: translateY(135%);
+  }
+  to {
+    transform: none;
+  }
+}
+/* meta line + scroll cue arrive after the name (opacity/transform only — no display here) */
+.home-intro-in {
+  animation: home-rise-in 0.9s var(--ease-out) var(--d, 0s) both;
+}
+@keyframes home-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+/* scroll cue: a hairline with a travelling dot */
+.home-cue-line {
+  position: relative;
+  display: block;
+  width: 1px;
+  height: 40px;
+  background: color-mix(in oklab, var(--muted) 35%, transparent);
+  overflow: hidden;
+}
+.home-cue-line::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: -6px;
+  width: 3px;
+  height: 6px;
+  background: var(--text);
+  animation: home-cue 1.8s var(--ease-in-out) infinite;
+}
+@keyframes home-cue {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(46px);
+    opacity: 0;
+  }
+}
+
+/* ─── chapters ──────────────────────────────────────────────────────────────── */
+.home-chapter {
+  position: relative;
+  z-index: 10;
+  height: calc(var(--home-slot) + 100svh);
+  margin-top: -100svh;
+  pointer-events: none;
+}
+.home-chapter:first-of-type {
+  margin-top: 0;
+}
+.home-pin {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+}
+.home-row {
+  display: flex;
+  height: 100%;
+  align-items: center;
+}
+.home-box {
+  position: relative;
+  pointer-events: auto;
+  width: min(100%, 33rem);
+  will-change: opacity, transform;
+}
+/* chapter entrance (chapter-reveal.ts): armed while the panel is hidden, played as it appears.
+   Headings and rules use the motion kit's m-text / m-line states; [data-hr="fade"] rises in. */
+.home-box [data-hr="fade"][data-m="armed"] {
+  opacity: 0;
+  transform: translateY(14px);
+}
+.home-box [data-hr="fade"][data-m="play"] {
+  animation: home-rise-in 0.85s var(--ease-out) var(--hd, 0s) both;
+}
+
+/* SIDES (default for landscape): robot right → text left, robot left → text right */
+.home-chapter[data-side="right"] .home-row {
+  justify-content: flex-start;
+}
+.home-chapter[data-side="left"] .home-row {
+  justify-content: flex-end;
+}
+@media (orientation: landscape) and (min-width: 600px) {
+  .home-box {
+    width: min(42%, 33rem);
+  }
+  .home-chapter[data-side="left"] .home-box {
+    margin-right: clamp(0px, 2vw, 32px);
+  }
+  .home-chapter[data-side="right"] .home-box {
+    margin-left: clamp(0px, 2vw, 32px);
+  }
+}
+/* short landscape screens (phones on their side): tighten the type so a chapter fits */
+@media (orientation: landscape) and (max-height: 620px) {
+  .home-box .type-h2 {
+    font-size: clamp(24px, 3vw, 34px);
+  }
+  .home-box .type-lede {
+    font-size: 15px;
+  }
+  .home-box [data-home-stats] {
+    margin-top: 16px;
+  }
+}
+
+/* STACK (portrait / narrow): robot in the top region, the chapter in the bottom region */
+@media (orientation: portrait), (max-width: 599.98px) {
+  .home-row {
+    align-items: flex-end;
+    justify-content: stretch !important;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+  .home-box {
+    width: 100%;
+    max-height: calc(100svh - var(--home-region) - 12px);
+  }
+  .home-box .type-h2 {
+    font-size: clamp(26px, 7vw, 34px);
+  }
+  .home-box .type-lede {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+}
+
+/* ─── after the story: one motion signature per section (section-motion.tsx) ──────
+   States come from the motion kit's useArm: no data-m = final (server, reduced motion, already
+   on screen at load) · data-m="armed" = hidden below the fold · data-m="play" = animating in.
+   Entrances use `backwards` fill so nothing lingers on the element once they finish. */
+
+/* a plain settle-in for secondary copy (index sub-line, sponsor lede) */
+.home-fade[data-m="armed"] {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.home-fade[data-m="play"] {
+  animation: home-rise-in 0.8s var(--ease-out) var(--fd, 0s) backwards;
+}
+
+/* THE TEAM — heading + lede pull into focus word by word (FocusText) */
+.home-focus-w {
+  display: inline-block;
+}
+.home-focus[data-m="armed"] .home-focus-w {
+  opacity: 0;
+  filter: blur(14px);
+}
+.home-focus[data-m="play"] .home-focus-w {
+  animation: home-focus 1.15s var(--ease-out) backwards;
+  animation-delay: calc(var(--fd, 0s) + var(--i, 0) * var(--fs, 0.06s));
+}
+@keyframes home-focus {
+  from {
+    opacity: 0;
+    filter: blur(14px);
+    transform: scale(1.1);
+  }
+  45% {
+    opacity: 1;
+  }
+  to {
+    filter: blur(0);
+    transform: scale(1);
+  }
+}
+
+/* THE TEAM — headcount: one tick per student, grouped in fives (Tally) */
+.home-tally {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+.home-tally-ticks {
+  display: inline-flex;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+.home-tally-ticks > i {
+  display: block;
+  width: 2px;
+  height: 11px;
+  background: currentColor;
+  opacity: 0.42;
+  transform-origin: 50% 100%;
+}
+.home-tally-ticks > i:nth-child(5n):not(:last-child) {
+  margin-right: 4px;
+}
+.home-tally[data-m="armed"] .home-tally-ticks > i {
+  transform: scaleY(0);
+}
+.home-tally[data-m="play"] .home-tally-ticks > i {
+  animation: home-tick 0.28s var(--ease-out) backwards;
+  animation-delay: calc(var(--td, 0s) + var(--k, 0) * var(--ts, 0.05s));
+}
+@keyframes home-tick {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+/* THE TEAM — the portrait strip flips down tile by tile like a split-flap board, a diagonal wave
+   across the two desktop rows (team-5 markup: .home-flip > div > div(rows) > div(row) > a(tile);
+   phones: .home-flip > div > ul > li) */
+.home-team-strip ul {
+  scroll-padding-inline: var(--page-margin); /* phones: snap the cards to the page margin */
+}
+.home-flip > div > div > div > *,
+.home-flip > div > ul > li {
+  --c: 0;
+  --r: 0;
+}
+.home-flip > div > div > div > :nth-child(2),
+.home-flip > div > ul > li:nth-child(2) {
+  --c: 1;
+}
+.home-flip > div > div > div > :nth-child(3),
+.home-flip > div > ul > li:nth-child(3) {
+  --c: 2;
+}
+.home-flip > div > div > div > :nth-child(4),
+.home-flip > div > ul > li:nth-child(n + 4) {
+  --c: 3;
+}
+.home-flip > div > div > div > :nth-child(5) {
+  --c: 4;
+}
+.home-flip > div > div > div > :nth-child(n + 6) {
+  --c: 5;
+}
+.home-flip > div > div > :nth-child(2) > * {
+  --r: 1;
+}
+.home-flip[data-m="armed"] > div > div > div > *,
+.home-flip[data-m="armed"] > div > ul > li {
+  opacity: 0;
+  transform: perspective(1100px) rotateX(78deg);
+}
+.home-flip[data-m="play"] > div > div > div > *,
+.home-flip[data-m="play"] > div > ul > li {
+  transform-origin: 50% 0;
+  animation: home-flap 1s var(--ease-out) backwards;
+  animation-delay: calc(var(--c) * 0.075s + var(--r) * 0.2s);
+}
+@keyframes home-flap {
+  from {
+    opacity: 0;
+    transform: perspective(1100px) rotateX(78deg);
+    filter: brightness(0.3);
+  }
+  28% {
+    opacity: 1;
+  }
+  to {
+    transform: perspective(1100px) rotateX(0deg);
+    filter: brightness(1);
+  }
+}
+
+/* THE DRAWING SET — heading plotted letter by letter behind a pen caret (PlotText) */
+.home-plot-w {
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+}
+.home-plot-c {
+  position: relative;
+}
+.home-plot[data-m="armed"] .home-plot-c {
+  opacity: 0;
+}
+.home-plot[data-m="play"] .home-plot-c {
+  animation: home-plot-in 0.14s linear backwards;
+  animation-delay: calc(var(--pd, 0s) + var(--i, 0) * var(--ps, 0.045s));
+}
+@keyframes home-plot-in {
+  from {
+    opacity: 0;
+  }
+}
+/* the pen: sits after the character being plotted, then blinks twice at the end */
+.home-plot[data-m="play"] .home-plot-c::after,
+.home-plot-caret {
+  content: "";
+  position: absolute;
+  left: 100%;
+  top: 0.1em;
+  bottom: 0.04em;
+  width: 0.075em;
+  margin-left: 0.04em;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+}
+.home-plot[data-m="play"] .home-plot-c::after {
+  animation: home-pen var(--ps, 0.045s) steps(1, end) forwards;
+  animation-delay: calc(var(--pd, 0s) + var(--i, 0) * var(--ps, 0.045s));
+}
+.home-plot[data-m="play"] .home-plot-caret {
+  margin-left: 0.08em;
+  animation: home-pen-end 1.1s steps(1, end) forwards;
+  animation-delay: calc(var(--pd, 0s) + var(--pn, 16) * var(--ps, 0.045s));
+}
+@keyframes home-pen {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes home-pen-end {
+  0% {
+    opacity: 1;
+  }
+  25% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  75%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* THE DRAWING SET — the sheets fan out from a stack (SheetStack sets --off = distance to sheet 1).
+   Sheets are opaque and the earlier ones sit on top, so each slides out from under the one above. */
+.home-sheets {
+  overflow: clip;
+}
+.home-sheets[data-m] > li {
+  position: relative;
+  z-index: calc(40 - var(--k, 0));
+  background: var(--bg);
+}
+.home-sheets[data-m="armed"] > li {
+  opacity: 0;
+  transform: translateY(var(--off, 0px));
+}
+.home-sheets[data-m="armed"] > li:first-child {
+  transform: translateY(-14px);
+}
+.home-sheets[data-m="play"] > li:first-child {
+  animation: home-sheet-top 0.3s var(--ease-out) backwards;
+}
+/* the stack only shows once sheet 1 is solid, then fans out */
+.home-sheets[data-m="play"] > li:not(:first-child) {
+  animation: home-sheet-fan 1s cubic-bezier(0.6, 0, 0.25, 1) backwards;
+  animation-delay: calc(0.3s + var(--k, 0) * 0.03s);
+}
+@keyframes home-sheet-top {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+}
+@keyframes home-sheet-fan {
+  from {
+    opacity: 0;
+    transform: translateY(var(--off, 0px));
+  }
+  0.1% {
+    opacity: 1;
+  }
+}
+/* hover / focus: registration marks close in on the selected sheet */
+.home-sheet::after {
+  --tick: color-mix(in oklab, var(--text) 72%, transparent);
+  content: "";
+  position: absolute;
+  inset: 8px 14px;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--tick) 0 0) left top / 10px 1px,
+    linear-gradient(var(--tick) 0 0) left top / 1px 10px,
+    linear-gradient(var(--tick) 0 0) right top / 10px 1px,
+    linear-gradient(var(--tick) 0 0) right top / 1px 10px,
+    linear-gradient(var(--tick) 0 0) left bottom / 10px 1px,
+    linear-gradient(var(--tick) 0 0) left bottom / 1px 10px,
+    linear-gradient(var(--tick) 0 0) right bottom / 10px 1px,
+    linear-gradient(var(--tick) 0 0) right bottom / 1px 10px;
+  background-repeat: no-repeat;
+  transition:
+    inset 0.28s var(--ease-out),
+    opacity 0.18s var(--ease-out);
+}
+.home-sheet:hover::after,
+.home-sheet:focus-visible::after {
+  inset: 0;
+  opacity: 1;
+}
+
+/* FOUNDING PARTNER — odometer wheels (odometer.tsx) driven by the tier grid's arm */
+.home-odo-row {
+  display: inline-flex;
+  height: 1em;
+  line-height: 1;
+}
+.home-odo-row > span,
+.home-odo-reel > span {
+  display: block;
+  height: 1em;
+  line-height: 1;
+}
+.home-odo-wheel {
+  overflow: clip;
+}
+.home-odo-reel {
+  display: flex;
+  flex-direction: column;
+  transform: translateY(calc(var(--stop, 0) * -1em));
+}
+.home-tiers[data-m="armed"] .home-odo-reel {
+  transform: none;
+}
+.home-tiers[data-m="play"] .home-odo-reel {
+  animation: home-odo calc(1.2s + var(--turns, 0) * 0.22s) cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(0.15s + var(--k, 0) * 0.14s);
+}
+@keyframes home-odo {
+  from {
+    transform: none;
+  }
+}
+/* the OPEN SLOT chips stamp down once the wheels have settled */
+.home-tiers[data-m="armed"] .home-stamp {
+  opacity: 0;
+}
+.home-tiers[data-m="play"] .home-stamp {
+  animation: home-stamp 0.3s var(--ease-in) backwards;
+  animation-delay: calc(1.05s + var(--k, 0) * 0.16s);
+}
+@keyframes home-stamp {
+  from {
+    opacity: 0;
+    transform: scale(1.75) rotate(-7deg);
+  }
+  60% {
+    opacity: 1;
+  }
+}
+/* hover / focus: the open slot's outline marches (marching ants) */
+.home-tier::after {
+  --ant: color-mix(in oklab, var(--text) 50%, transparent);
+  content: "";
+  position: absolute;
+  inset: 14px;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, var(--ant) 50%, transparent 0) 0 0 / 10px 1px repeat-x,
+    linear-gradient(90deg, var(--ant) 50%, transparent 0) 0 100% / 10px 1px repeat-x,
+    linear-gradient(0deg, var(--ant) 50%, transparent 0) 0 0 / 1px 10px repeat-y,
+    linear-gradient(0deg, var(--ant) 50%, transparent 0) 100% 0 / 1px 10px repeat-y;
+  transition:
+    inset 0.3s var(--ease-out),
+    opacity 0.2s var(--ease-out);
+}
+.home-tier:hover::after,
+.home-tier:focus-visible::after {
+  inset: 8px;
+  opacity: 1;
+  animation: home-ants 0.9s linear infinite;
+}
+@keyframes home-ants {
+  to {
+    background-position:
+      10px 0,
+      -10px 100%,
+      0 -10px,
+      100% 10px;
+  }
+}
+
+/* gentle parallax on big type: a CSS scroll-driven drift (browsers without view timelines and
+   reduced-motion users simply get the static layout) */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .home-parallax {
+      animation: home-drift linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+  }
+}
+@keyframes home-drift {
+  from {
+    translate: 0 var(--drift, 2.5vh);
+  }
+  to {
+    translate: 0 calc(-1 * var(--drift, 2.5vh));
+  }
+}
+
+/* ─── FLOW (reduced motion): no pinning, no scrub ───────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .home-intro {
+    height: 100svh;
+    margin-bottom: 0;
+  }
+  .home-intro-pin {
+    position: relative;
+  }
+  .home-track {
+    top: 100svh;
+  }
+  .home-chapter,
+  .home-chapter:first-of-type {
+    height: auto;
+    min-height: 88svh;
+    margin-top: 0;
+  }
+  .home-pin {
+    position: relative;
+    height: auto;
+    min-height: inherit;
+  }
+  .home-row {
+    min-height: inherit;
+    justify-content: flex-start !important;
+    padding-block: 72px;
+  }
+  .home-box,
+  .home-intro [data-letter],
+  .home-letter,
+  .home-box [data-hr] {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+  .home-letter-rise,
+  .home-intro-in,
+  .home-box [data-hr] {
+    animation: none !important;
+  }
+  /* after the story: final states only (useArm never arms under reduced motion; this also covers
+     the setting being switched on mid-session) */
+  .home-fade,
+  .home-focus-w,
+  .home-tally-ticks > i,
+  .home-flip > div > div > div > *,
+  .home-flip > div > ul > li,
+  .home-plot-c,
+  .home-sheets > li,
+  .home-stamp {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+  .home-plot-c::after,
+  .home-plot-caret {
+    display: none !important;
+  }
+  .home-odo-reel {
+    animation: none !important;
+    transform: translateY(calc(var(--stop, 0) * -1em)) !important;
+  }
+  .home-sheet::after,
+  .home-tier::after {
+    transition: none !important;
+    animation: none !important;
+  }
+  .home-cue-line::after {
+    animation: none;
+    opacity: 1;
+    top: 17px;
+  }
+}
+@media (prefers-reduced-motion: reduce) and (orientation: landscape) and (min-width: 600px) {
+  .home-box {
+    margin-left: 0 !important;
+  }
+}
+/* FLOW + portrait: the robot is a sticky, opaque top region; chapters scroll beneath it */
+@media (prefers-reduced-motion: reduce) and (orientation: portrait), (prefers-reduced-motion: reduce) and (max-width: 599.98px) {
+  .home-track {
+    z-index: 30;
+  }
+  .home-stage {
+    height: var(--home-region);
+    background: var(--bg);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .home-chapter,
+  .home-chapter:first-of-type {
+    min-height: 0;
+  }
+  .home-chapter:first-of-type {
+    padding-top: var(--home-region);
+  }
+  .home-row {
+    align-items: flex-start;
+    padding-block: 40px 56px;
+  }
+  .home-box {
+    max-height: none;
+  }
+}

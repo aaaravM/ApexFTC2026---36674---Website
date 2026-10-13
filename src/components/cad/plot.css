@@ -1,0 +1,385 @@
+/* ─── Plot motion (./plot-motion.tsx) ──────────────────────────────────────────
+   Global CSS (the project's CSS rule treats every .css file as global, so CSS modules are not used).
+   A <Plot> flips data-plot "armed" → "play"; each fx-* descendant runs its effect, offset by
+   --fx-delay + --i × --fx-step (+ its own --fx-own). No data-plot = the final, static drawing.
+   Never nest one <Plot> inside another's fx items. */
+
+[data-plot] :is(.fx-stamp, .fx-type, .fx-slide, .fx-tilt, .fx-rise, .fx-tick, .fx-arc, .fx-check, .fx-node, .fx-stub, .fx-ext, .fx-half-l, .fx-half-r, .fx-arrow),
+[data-plot]:is(.fx-stamp, .fx-type, .fx-slide, .fx-tilt, .fx-rise) {
+  animation-delay: calc(var(--fx-delay, 0s) + var(--i, 0) * var(--fx-step, 0.08s) + var(--fx-own, 0s));
+  animation-fill-mode: both;
+}
+
+/* stamp — lands from 1.25× with a slight twist, pressed once */
+[data-plot="armed"] .fx-stamp,
+[data-plot="armed"].fx-stamp {
+  opacity: 0;
+  transform: scale(1.25) rotate(-5deg);
+}
+[data-plot="play"] .fx-stamp,
+[data-plot="play"].fx-stamp {
+  animation-name: dwg-stamp;
+  animation-duration: 0.42s;
+  animation-timing-function: cubic-bezier(0.55, 0, 0.6, 1);
+}
+@keyframes dwg-stamp {
+  0% { opacity: 0; transform: scale(1.25) rotate(-5deg); }
+  55% { opacity: 1; transform: scale(0.97) rotate(0.5deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+/* type — stepped left → right clip, like a line being typed */
+[data-plot="armed"] .fx-type,
+[data-plot="armed"].fx-type {
+  clip-path: inset(0 100% 0 0);
+}
+[data-plot="play"] .fx-type,
+[data-plot="play"].fx-type {
+  animation-name: dwg-type;
+  animation-duration: var(--fx-dur, 0.5s);
+  animation-timing-function: steps(var(--fx-steps, 20), end);
+}
+@keyframes dwg-type {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+/* slide — carriage feed from the left */
+[data-plot="armed"] .fx-slide,
+[data-plot="armed"].fx-slide {
+  opacity: 0;
+  transform: translateX(-28px);
+}
+[data-plot="play"] .fx-slide,
+[data-plot="play"].fx-slide {
+  animation-name: dwg-slide;
+  animation-duration: 0.7s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes dwg-slide {
+  from { opacity: 0; transform: translateX(-28px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* tilt — a card flips down off its rail */
+.fx-tilt {
+  transform-origin: 50% 0;
+}
+[data-plot="armed"] .fx-tilt,
+[data-plot="armed"].fx-tilt {
+  opacity: 0;
+  transform: perspective(900px) rotateX(-70deg);
+}
+[data-plot="play"] .fx-tilt,
+[data-plot="play"].fx-tilt {
+  animation-name: dwg-tilt;
+  animation-duration: 0.85s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes dwg-tilt {
+  from { opacity: 0; transform: perspective(900px) rotateX(-70deg); }
+  40% { opacity: 1; }
+  to { opacity: 1; transform: perspective(900px) rotateX(0); }
+}
+
+/* rise — soft rise */
+[data-plot="armed"] .fx-rise,
+[data-plot="armed"].fx-rise {
+  opacity: 0;
+  transform: translateY(14px);
+}
+[data-plot="play"] .fx-rise,
+[data-plot="play"].fx-rise {
+  animation-name: dwg-rise;
+  animation-duration: 0.6s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes dwg-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* rule — a row's bottom rule draws under it */
+.fx-rule {
+  position: relative;
+}
+.fx-rule::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: var(--rule-c, var(--hairline-strong));
+  transform-origin: left center;
+}
+[data-plot="armed"] .fx-rule::after {
+  transform: scaleX(0);
+}
+[data-plot="play"] .fx-rule::after {
+  animation: dwg-scale-x 0.9s cubic-bezier(0.65, 0, 0.35, 1) both;
+  animation-delay: calc(var(--fx-delay, 0s) + var(--i, 0) * var(--fx-step, 0.08s));
+}
+
+/* tick — ruler ticks tick up */
+.fx-tick {
+  transform-origin: 50% 100%;
+}
+[data-plot="armed"] .fx-tick {
+  transform: scaleY(0);
+}
+[data-plot="play"] .fx-tick {
+  animation-name: dwg-scale-y;
+  animation-duration: 0.22s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* arc / check — SVG strokes plot along their length (needs pathLength="1") */
+.fx-arc,
+.fx-check {
+  stroke-dasharray: 1;
+}
+[data-plot="armed"] :is(.fx-arc, .fx-check) {
+  stroke-dashoffset: 1;
+}
+[data-plot="play"] :is(.fx-arc, .fx-check) {
+  animation-name: dwg-stroke;
+  animation-duration: var(--fx-dur, 0.9s);
+  animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+}
+@keyframes dwg-stroke {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* hl — the pollen highlighter sweeps behind a word (ink text stays on top) */
+.fx-hl {
+  background: linear-gradient(transparent 12%, var(--pollen) 12%, var(--pollen) 92%, transparent 92%) no-repeat 0 0 / 100% 100%;
+  color: var(--pollen-ink);
+  padding-inline: 0.35em;
+  margin-inline: -0.35em;
+}
+[data-plot="armed"] .fx-hl {
+  background-size: 0% 100%;
+}
+[data-plot="play"] .fx-hl {
+  animation: dwg-hl 0.55s cubic-bezier(0.65, 0, 0.35, 1) both;
+  animation-delay: calc(var(--fx-delay, 0s) + var(--i, 0) * var(--fx-step, 0.08s) + var(--fx-own, 0s));
+}
+@keyframes dwg-hl {
+  from { background-size: 0% 100%; }
+  to { background-size: 100% 100%; }
+}
+
+/* node + stub — flowchart steps (design stories) */
+.fx-node {
+  background: var(--text);
+  color: var(--bg);
+}
+[data-plot="armed"] .fx-node {
+  opacity: 0;
+  transform: scale(0.4);
+}
+[data-plot="play"] .fx-node {
+  animation-name: dwg-node;
+  animation-duration: 0.6s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes dwg-node {
+  0% { opacity: 0; transform: scale(0.4); background: var(--bg); color: var(--text); }
+  50% { opacity: 1; transform: scale(1); background: var(--bg); color: var(--text); }
+  100% { opacity: 1; transform: scale(1); background: var(--text); color: var(--bg); }
+}
+.fx-stub {
+  transform-origin: left center;
+  --fx-own: 0.25s;
+}
+[data-plot="armed"] .fx-stub {
+  transform: scaleX(0);
+}
+[data-plot="play"] .fx-stub {
+  animation-name: dwg-scale-x;
+  animation-duration: 0.45s;
+  animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* dimension callouts: extension lines → dimension line from the centre out → arrowheads */
+.fx-ext {
+  transform-origin: 50% 100%;
+}
+[data-plot="armed"] .fx-ext {
+  transform: scaleY(0);
+}
+[data-plot="play"] .fx-ext {
+  animation-name: dwg-scale-y;
+  animation-duration: 0.24s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.fx-half-l {
+  transform-origin: right center;
+  --fx-own: 0.18s;
+}
+.fx-half-r {
+  transform-origin: left center;
+  --fx-own: 0.18s;
+}
+[data-plot="armed"] :is(.fx-half-l, .fx-half-r) {
+  transform: scaleX(0);
+}
+[data-plot="play"] :is(.fx-half-l, .fx-half-r) {
+  animation-name: dwg-scale-x;
+  animation-duration: 0.55s;
+  animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+}
+.fx-arrow {
+  --fx-own: 0.68s;
+}
+[data-plot="armed"] .fx-arrow {
+  opacity: 0;
+  transform: scale(0.2);
+}
+[data-plot="play"] .fx-arrow {
+  animation-name: dwg-pop;
+  animation-duration: 0.18s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes dwg-pop {
+  from { opacity: 0; transform: scale(0.2); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes dwg-scale-x {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes dwg-scale-y {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+/* the design-story spine (FlowSpine) */
+.dwg-spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--hairline);
+  pointer-events: none;
+}
+.dwg-spine-ink {
+  position: absolute;
+  inset: 0;
+  background: var(--text);
+  transform-origin: 50% 0;
+}
+.dwg-spine-tip {
+  position: absolute;
+  left: 50%;
+  translate: -50% -60%;
+  color: var(--text);
+  line-height: 0;
+}
+
+/* VIEW 1 plots in (PlotScan): a paper cover retreats behind a sweeping scan line */
+.dwg-scan {
+  display: none;
+}
+.dwg-scan[data-plot] {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+}
+.dwg-scan-cover {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+}
+.dwg-scan-pen {
+  position: absolute;
+  inset: 0;
+  border-left: 1px solid var(--text);
+}
+.dwg-scan-label {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  padding: 1px 4px 0;
+  background: var(--bg);
+  font-family: var(--ff-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text);
+}
+.dwg-scan[data-plot="play"] .dwg-scan-cover {
+  animation: dwg-scan-cover 1.9s cubic-bezier(0.65, 0, 0.35, 1) 0.35s both;
+}
+.dwg-scan[data-plot="play"] .dwg-scan-pen {
+  animation: dwg-scan-pen 1.9s cubic-bezier(0.65, 0, 0.35, 1) 0.35s both;
+}
+@keyframes dwg-scan-cover {
+  from { clip-path: inset(0 0 0 0); }
+  to { clip-path: inset(0 0 0 100%); }
+}
+@keyframes dwg-scan-pen {
+  0% { transform: translateX(0); opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+/* zone numbers and letters tick in round the sheet on load; toolchain connectors march */
+@media (prefers-reduced-motion: no-preference) {
+  .dwg-band-h > span,
+  .dwg-band-v > span {
+    animation: dwg-zone 0.3s steps(3, end) both;
+    animation-delay: calc(0.35s + min(var(--i, 0), 16) * 0.05s);
+  }
+  .dwg-ants {
+    animation: dwg-ants 1.4s linear infinite;
+  }
+}
+.dwg-ants {
+  stroke-dasharray: 4 3;
+}
+@keyframes dwg-zone {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes dwg-ants {
+  to { stroke-dashoffset: -7; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-plot],
+  [data-plot] * {
+    animation: none !important;
+  }
+  [data-plot] :is(.fx-stamp, .fx-type, .fx-slide, .fx-tilt, .fx-rise, .fx-tick, .fx-node, .fx-stub, .fx-ext, .fx-half-l, .fx-half-r, .fx-arrow),
+  [data-plot]:is(.fx-stamp, .fx-type, .fx-slide, .fx-tilt, .fx-rise) {
+    opacity: 1 !important;
+    transform: none !important;
+    clip-path: none !important;
+  }
+  [data-plot] :is(.fx-arc, .fx-check) {
+    stroke-dashoffset: 0 !important;
+  }
+  [data-plot] .fx-rule::after {
+    transform: none !important;
+  }
+  [data-plot] .fx-hl {
+    background-size: 100% 100% !important;
+  }
+  .dwg-scan {
+    display: none !important;
+  }
+  .dwg-spine-ink {
+    transform: none !important;
+  }
+  .dwg-spine-tip {
+    display: none;
+  }
+}
