@@ -119,6 +119,9 @@ export const team: TeamMember[] = [
     disciplines: ["CAD", "Code", "Build"],
     bio: "Works across CAD, code, and the mechanical build.",
     bioPending: true,
+    // Photo provided by Aarav (2026-10-19). Source is only 240×320 — swap in a larger original when available.
+    photo: { src: "/team/aarav-muttanapalli.jpg", full: "/team/aarav-muttanapalli-full.jpg", focal: [48, 42] },
+    consent: true,
   },
   {
     slug: "srihari-vishnu",

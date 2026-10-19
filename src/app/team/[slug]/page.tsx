@@ -29,6 +29,9 @@ import { displayName, firstName, getMember, hasPublicPhoto, team } from "@/conte
 // Silences the dev-only "URL data outside of Suspense" insight; ensureStatic still applies.
 export const instant = false;
 
+/** Characters in the longest word of a name (sizes the title so a long surname never overruns). */
+const longestWord = (name: string) => Math.max(...name.split(/\s+/).map((w) => w.length));
+
 export function generateStaticParams() {
   return team.map((m) => ({ slug: m.slug }));
 }
@@ -92,9 +95,16 @@ export default async function MemberPage({ params }: PageProps<"/team/[slug]">) 
                 </div>
               </div>
 
-              <div className="min-w-0 md:col-span-7 lg:col-span-6 lg:col-start-7">
+              <div className="@container min-w-0 md:col-span-7 lg:col-span-6 lg:col-start-7">
                 <SectionTag code="01" label={`TEAM · #${n} OF ${total}`} immediate />
-                <h1 id={id("name")} className="type-display mt-6 sm:mt-8">
+                {/* A long surname can't break, so cap the size so the longest word fits the column
+                    (Hubot at this stretch/weight averages ~0.54em per glyph; 0.6 leaves headroom).
+                    Short names keep the normal display size. */}
+                <h1
+                  id={id("name")}
+                  className="type-display mt-6 sm:mt-8"
+                  style={{ fontSize: `min(clamp(44px, 7.2vw, 112px), ${(100 / (longestWord(name) * 0.6)).toFixed(2)}cqi)` }}
+                >
                   <TextReveal text={name} immediate delay={0.12} />
                 </h1>
                 {!roleIsDisciplines(m) && (
