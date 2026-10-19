@@ -394,11 +394,6 @@
     background-size: 100% 1px;
   }
 }
-/* Footer giant wordmark: one line edge to edge at every width (measured: 10.19em at wdth 125,
-   wght 250, +0.02em tracking → 9.6vw fills ~98% of the viewport). */
-.footer-wordmark {
-  font-size: 9.6vw;
-}
 /* Blueprint paper grid (CAD sheet). */
 @utility paper-grid {
   background-color: var(--cad-paper);

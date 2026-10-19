@@ -115,7 +115,7 @@ export function CommandPalette() {
       id: `member-${m.slug}`,
       label: displayName(m),
       meta: m.role,
-      keywords: [...m.disciplines, m.founder ? "founder captain" : ""],
+      keywords: [...m.disciplines, m.role, m.founder ? "founder" : ""],
       run: () => go(`/team/${m.slug}`),
     }));
     const robot: Item[] = subsystems.map((s) => ({

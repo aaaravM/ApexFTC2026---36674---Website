@@ -9,7 +9,7 @@ Team roster + bios live in the project at `src/content/team.ts` (already written
   - CORRECTION: the old site says "Season 2025–26 · Bio Buzz" — wrong year. Use 2026–27.
   - Scoring element: "Pollen" (~3 in plastic balls). See research/biobuzz-first.md for verified details.
 - Team size: **12 students** (old home page said "15 students" — inconsistent; roster has 12).
-- Founded by Anish Pattanaik (Founder & Team Captain).
+- Founded by Anish Pattanaik (Founder & Build Lead). Code Lead: Aarav Muttanapalli (updated 2026-10-19).
 - Old footer: "Apex Robotics · FTC · Season: Bio Buzz", "DWG-001 · REV A · © 2026".
 - Nav order: Meet the Team, Outreach, Meet the Robot, CAD, Code, Sponsors, Links (+ theme toggle).
 

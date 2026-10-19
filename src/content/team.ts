@@ -52,8 +52,8 @@ export const team: TeamMember[] = [
   {
     slug: "anish-pattanaik",
     name: "Anish Pattanaik",
-    role: "Founder & Team Captain",
-    disciplines: ["Lead"],
+    role: "Founder & Build Lead",
+    disciplines: ["Lead", "Build"],
     bio: "Founded Apex Robotics to bring competitive FTC engineering to the team. Leads strategy, design reviews, and keeps the build season on rails. Outside of FTC, he enjoys tennis, math competitions, and exploring new STEM challenges.",
     photo: { src: "/team/anish-pattanaik.jpg", full: "/team/anish-pattanaik-full.jpg", focal: [52, 40] },
     consent: true,
@@ -115,10 +115,9 @@ export const team: TeamMember[] = [
   {
     slug: "aarav-muttanapalli",
     name: "Aarav Muttanapalli",
-    role: "CAD · Code · Build",
-    disciplines: ["CAD", "Code", "Build"],
-    bio: "Works across CAD, code, and the mechanical build.",
-    bioPending: true,
+    role: "Code Lead",
+    disciplines: ["Lead", "Code", "CAD", "Build"],
+    bio: "Aarav leads programming for Apex Robotics, writing our robot's code in Java on the FTC SDK and helping newer members learn to write and debug their own. He also works on CAD and build, so he can follow a design from the screen all the way to the field. Aarav designed and built this website, including the interactive 3D robot model and the live aiming demo ported straight from our robot's code. Outside of FTC, he founded logrthm.ai, a small AI studio that builds apps for education and health, and his hackathon project MentoLab won 1st Place and Best AI at Sierra Hacks. He's also a TEDx speaker, has played piano for nine years, and hopes to one day build intelligent systems for space exploration.",
     // Photo provided by Aarav (2026-10-19). Source is only 240×320 — swap in a larger original when available.
     photo: { src: "/team/aarav-muttanapalli.jpg", full: "/team/aarav-muttanapalli-full.jpg", focal: [48, 42] },
     consent: true,
@@ -152,8 +151,9 @@ export const team: TeamMember[] = [
     name: "Abhinav Nirmal",
     role: "Code",
     disciplines: ["Code"],
-    bio: "Works on the autonomous and TeleOp codebase.",
-    bioPending: true,
+    bio: "Abhinav is a passionate coder on the FTC team who enjoys programming and problem-solving. Outside of robotics, he likes playing video games, reading books, and swimming.",
+    photo: { src: "/team/abhinav-nirmal.jpg", full: "/team/abhinav-nirmal-full.jpg", focal: [50, 42] },
+    consent: true,
   },
 ];
 

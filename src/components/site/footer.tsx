@@ -1,11 +1,11 @@
 // Site footer (DESIGN_SPEC §3): index + elsewhere links, the Season/Program strip with the
-// official FIRST® Tech Challenge + BIOBUZZ™ logos, an engineering title block, the trademark line,
-// the colophon, and a giant wordmark cropped by the bottom of the page. Server Component.
+// official FIRST® Tech Challenge + BIOBUZZ™ logos, an engineering title block, the trademark line
+// and the colophon. (The giant bottom wordmark was removed at the team's request.) Server Component.
 
 import { ApexWings } from "@/components/brand/apex-wings";
 import { ProgramLogos } from "@/components/brand/first-logos";
 import { Mark } from "@/components/brand/mark";
-import { LineDraw, Scramble, TextReveal } from "@/components/motion";
+import { LineDraw, Scramble } from "@/components/motion";
 import { LinkDraw, LinkExternal } from "@/components/ui/skiper-ui/skiper40";
 import { site } from "@/content/site";
 import { TitleBlock } from "./page-header";
@@ -23,8 +23,8 @@ const elsewhere = [
 export function Footer() {
   return (
     <footer className="relative mt-[clamp(64px,10vw,140px)] overflow-hidden" aria-labelledby="footer-title">
-      {/* Motion: the top rule draws in from the left, the strip rules from the right, the column
-          labels decode and the giant wordmark rises letter by letter as the page ends. */}
+      {/* Motion: the top rule draws in from the left, the strip rules from the right and the column
+          labels decode. */}
       <LineDraw className="absolute inset-x-0 top-0 text-hairline" />
       <h2 id="footer-title" className="sr-only">
         Site footer
@@ -137,18 +137,6 @@ export function Footer() {
         </p>
       </div>
 
-      {/* giant wordmark, cropped by the page bottom */}
-      <div aria-hidden="true" className="pointer-events-none select-none overflow-hidden">
-        <TextReveal
-          as="p"
-          mode="chars"
-          text="Apex Robotics"
-          stagger={0.04}
-          duration={1.1}
-          inset={0}
-          className="footer-wordmark -mb-[0.24em] block text-center font-display leading-[0.8] font-[250] tracking-[0.02em] whitespace-nowrap text-fg/90 uppercase [font-stretch:125%]"
-        />
-      </div>
     </footer>
   );
 }
