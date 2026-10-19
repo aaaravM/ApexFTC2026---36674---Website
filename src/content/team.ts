@@ -60,6 +60,16 @@ export const team: TeamMember[] = [
     founder: true,
   },
   {
+    slug: "aarav-muttanapalli",
+    name: "Aarav Muttanapalli",
+    role: "Code Lead",
+    disciplines: ["Lead", "Code", "Build"],
+    bio: "Aarav leads programming for Apex Robotics, writing our robot's code in Java on the FTC SDK and helping newer members learn to write and debug their own. He also works on CAD and build, so he can follow a design from the screen all the way to the field. Aarav designed and built this website, including the interactive 3D robot model and the live aiming demo ported straight from our robot's code. Outside of FTC, he founded logrthm.ai, a small AI studio that builds apps for education and health, and his hackathon project MentoLab won 1st Place and Best AI at Sierra Hacks. He's also a TEDx speaker, has played piano for nine years, and hopes to one day build intelligent systems for space exploration.",
+    // Photo provided by Aarav (2026-10-19). Source is only 240×320 — swap in a larger original when available.
+    photo: { src: "/team/aarav-muttanapalli.jpg", full: "/team/aarav-muttanapalli-full.jpg", focal: [48, 42] },
+    consent: true,
+  },
+  {
     slug: "abhinav-ayyau",
     name: "Abhinav Ayyau",
     role: "CAD · Build",
@@ -111,16 +121,6 @@ export const team: TeamMember[] = [
     disciplines: ["CAD", "Build"],
     bio: "Works on CAD models and the mechanical build.",
     bioPending: true,
-  },
-  {
-    slug: "aarav-muttanapalli",
-    name: "Aarav Muttanapalli",
-    role: "Code Lead",
-    disciplines: ["Lead", "Code", "CAD", "Build"],
-    bio: "Aarav leads programming for Apex Robotics, writing our robot's code in Java on the FTC SDK and helping newer members learn to write and debug their own. He also works on CAD and build, so he can follow a design from the screen all the way to the field. Aarav designed and built this website, including the interactive 3D robot model and the live aiming demo ported straight from our robot's code. Outside of FTC, he founded logrthm.ai, a small AI studio that builds apps for education and health, and his hackathon project MentoLab won 1st Place and Best AI at Sierra Hacks. He's also a TEDx speaker, has played piano for nine years, and hopes to one day build intelligent systems for space exploration.",
-    // Photo provided by Aarav (2026-10-19). Source is only 240×320 — swap in a larger original when available.
-    photo: { src: "/team/aarav-muttanapalli.jpg", full: "/team/aarav-muttanapalli-full.jpg", focal: [48, 42] },
-    consent: true,
   },
   {
     slug: "srihari-vishnu",
